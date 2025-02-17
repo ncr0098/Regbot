@@ -13,7 +13,7 @@ from services.dataverse_service import DataverseService
 import os
 from dotenv import load_dotenv
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.ADMIN)
+app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 @app.route(route="importFileToAISearch")
 def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
