@@ -36,10 +36,10 @@ class IndexerService:
                 SimpleField(name="id", type=SearchFieldDataType.String, key=True, searchable=False, filterable=False, sortable=False, facetable=False),
                 SearchableField(name="URL", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
                 SearchableField(name="organization", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
-                SearchableField(name="sentence", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
-                SearchableField(name="elaborated_question", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
+                SearchField(name="sentence", type=SearchFieldDataType.Collection(SearchFieldDataType.String), facetable=False, filterable=False, analyzer_name="standard.lucene"),
+                SearchableField(name="refined_question", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
                 SearchField(name="embedded_sentence", type=SearchFieldDataType.Collection(SearchFieldDataType.Single), searchable=True, vector_search_dimensions=1536, vector_search_profile_name='vectorConfig'),
-                SearchField(name="embedded_elaborated_question", type=SearchFieldDataType.Collection(SearchFieldDataType.Single), searchable=True, vector_search_dimensions=1536, vector_search_profile_name='vectorConfig'),
+                SearchField(name="embedded_refined_question", type=SearchFieldDataType.Collection(SearchFieldDataType.Single), searchable=True, vector_search_dimensions=1536, vector_search_profile_name='vectorConfig'),
                 SearchableField(name="summary", type=SearchFieldDataType.String, searchable=False, facetable=True, filterable=True, sortable=True),
                 SearchField(name="keywords", type=SearchFieldDataType.Collection(SearchFieldDataType.String), facetable=True, filterable=True, analyzer_name="standard.lucene"),
                 SearchableField(name="title", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
@@ -132,11 +132,18 @@ class IndexerService:
             search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)
 
             # データをAzure Cognitive Searchに登録
-            search_client.upload_documents(documents=[record])
+            result = search_client.upload_documents(documents=[record])[0]
             logging.info("Document uploaded successfully.")
+
+            status = getattr(result, "status_code")
+            
+            if status != 200 and status != 201:
+                logging.error(getattr(result, "error_message"))
+                raise Exception
 
         except ValidationError as e:
             logging.error(f"Validation error: {e.json()}")
+            raise
 
     def delete_record(self, query: list):
          # インデックスを作成するためのクライアント

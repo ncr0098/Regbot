@@ -1,5 +1,6 @@
 import msal
 import requests
+import tempfile
 import os
 import logging
 
@@ -22,20 +23,29 @@ class GraphAPIService:
         return access_token
     
     def download_file_from_sharepoint(self, file_url, file_name):
-
         headers = {
             'Authorization': f'Bearer {self.access_token}'
         }
-        response = requests.get(file_url, headers=headers, stream=False)
+        logging.info(f"token: {self.access_token}")
+        
+         # folder_id = self.get_folder_id_from_tree(site_id=site_id, sharepoint_directories=[directory_path])
+        try:  
+            response = requests.get(file_url, headers=headers, stream=False)
 
-        # ステータスコードをチェック
-        if response.status_code == 200:
-            # カレントディレクトリにファイルを保存
-            with open(file_name, "wb") as file:
-                file.write(response.content)
-            absolute_path = os.path.abspath(file_name)
-            logging.info(f"ファイルが {absolute_path} として保存されました。")
-            return absolute_path
-        else:
-            logging.error(f"ファイルのダウンロードに失敗しました。ステータスコード: {response.status_code}")
+            # ステータスコードをチェック
+            if response.status_code == 200:
+                # カレントディレクトリにファイルを保存
+                local_path = tempfile.gettempdir()
+                filepath = os.path.join(local_path, file_name)
+                logging.info(filepath)
+                with open(filepath, "wb") as file:
+                    file.write(response.content)
+                absolute_path = os.path.abspath(filepath)
+                logging.info(f"ファイルが {absolute_path} として保存されました。")
+                return absolute_path
+            else:
+                logging.error(f"ファイルのダウンロードに失敗しました。ステータスコード: {response.status_code}")
+                raise Exception
+        except Exception as e:
+            logging.error(f"GraphAPI request error: {e}")
             raise

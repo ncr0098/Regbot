@@ -27,7 +27,7 @@ class OpenAIService:
                 response = self.llm.invoke(message)
             return response
         except Exception as e:
-            logging.error(f"API request error: {e}")
+            logging.error(f"OpenAI API request error: {e}")
             raise
 
     def generate_embeddings(self, text):
@@ -38,5 +38,9 @@ class OpenAIService:
             raise
 
     def num_tokens(self, target: str):
-        encoding = tiktoken.encoding_for_model("gpt-4o-mini")
-        return len(encoding.encode(target))
+        try:
+            encoding = tiktoken.encoding_for_model("gpt-4o-mini")
+            return len(encoding.encode(target))
+        except Exception as e:
+            logging.error(f"counting tokens error: {e}")
+            raise

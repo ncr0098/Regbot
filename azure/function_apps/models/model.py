@@ -7,10 +7,10 @@ class TitleAndSummary(BaseModel):
 class Keywords(BaseModel):
     keywords: list[str] = Field(..., title="文書のキーワード")
     
-class ElaboratedQuestion(BaseModel):
+class RefinedQuestion(BaseModel):
     question: str = Field(..., title="想定質問")
     
-class ElaboratedQuestionWithFactor(BaseModel):
+class RefinedQuestionWithFactor(BaseModel):
     question_background: str = Field(..., title="問いの背景")
     question_purpose: str = Field(..., title="問いの目的")
     answer_scope: str = Field(..., title="回答のスコープ")
@@ -21,10 +21,10 @@ class Document(BaseModel):
     id: str
     URL: str
     organization: str
-    sentence: str
-    elaborated_question: str
+    sentence: list
+    refined_question: str
     embedded_sentence: list[float]
-    embedded_elaborated_question: list[float]
+    embedded_refined_question: list[float]
     summary: str
     keywords: list[str]
     title: str
