@@ -1,22 +1,23 @@
 
 import azure.functions as func
 import logging
-from datetime import datetime
-import base64
 
-from services.pdf_reader_service import PDFReaderService
-from services.openai_service import OpenAIService
-from services.text_processing_service import TextProcessingService
-from services.indexer_service import IndexerService
-from services.graph_api_service import GraphAPIService
-from services.dataverse_service import DataverseService
-import os
-from dotenv import load_dotenv
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 @app.route(route="importFileToAISearch")
 def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
+    from datetime import datetime
+    import base64
+
+    from services.pdf_reader_service import PDFReaderService
+    from services.openai_service import OpenAIService
+    from services.text_processing_service import TextProcessingService
+    from services.indexer_service import IndexerService
+    from services.graph_api_service import GraphAPIService
+    from services.dataverse_service import DataverseService
+    import os
+    from dotenv import load_dotenv
     try:
         logging.info('Python HTTP trigger function processed a request.')
 
