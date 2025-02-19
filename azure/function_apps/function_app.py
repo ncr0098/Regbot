@@ -50,8 +50,6 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
             power_platform_environment_url = os.getenv('POWER_PLATFORM_ENVIRONMENT_URL')
             dataverse_entity_name = os.getenv('DATAVERSE_ENTITY_NAME')
 
-            logging.info(f"client_id: {entra_client_id}, client_secret: {entra_client_secret}, authority: {entra_authority_url}, tennant_id: {entra_tenant_id}")
-
             # 各種サービス初期化
             pdf_reader_service = PDFReaderService()
             openai_service = OpenAIService(

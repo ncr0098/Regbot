@@ -26,9 +26,7 @@ class GraphAPIService:
         headers = {
             'Authorization': f'Bearer {self.access_token}'
         }
-        logging.info(f"token: {self.access_token}")
         
-         # folder_id = self.get_folder_id_from_tree(site_id=site_id, sharepoint_directories=[directory_path])
         try:  
             response = requests.get(file_url, headers=headers, stream=False)
 
@@ -37,7 +35,6 @@ class GraphAPIService:
                 # カレントディレクトリにファイルを保存
                 local_path = tempfile.gettempdir()
                 filepath = os.path.join(local_path, file_name)
-                logging.info(filepath)
                 with open(filepath, "wb") as file:
                     file.write(response.content)
                 absolute_path = os.path.abspath(filepath)
