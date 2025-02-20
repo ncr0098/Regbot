@@ -2,11 +2,13 @@
 import azure.functions as func
 import logging
 
+from test_blueprint import bp
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
-app1 = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
+app.register_blueprint(bp)
 
-@app.route(route="importFileToAISearch")
+@app.function_name(name="importFileToAISearch")
+@app.route(route="importFileToAISearch") # HTTP Trigger
 def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
     from datetime import datetime
     import base64
@@ -19,7 +21,6 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
     from services.dataverse_service import DataverseService
     import os
     from dotenv import load_dotenv
-    from typing import Any, Collection, MutableMapping
     try:
         logging.info('Python HTTP trigger function processed a request.')
 
@@ -162,24 +163,3 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         )
     except Exception as e:
         logging.error(f"Error occured: {e}")
-
-@app1.route(route="test_http_trigger")
-def test_http_trigger(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function processed a request.')
-
-    name = req.params.get('name')
-    if not name:
-        try:
-            req_body = req.get_json()
-        except ValueError:
-            pass
-        else:
-            name = req_body.get('name')
-
-    if name:
-        return func.HttpResponse(f"Hello, {name}. This HTTP triggered function executed successfully.")
-    else:
-        return func.HttpResponse(
-             "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
-             status_code=200
-        )
