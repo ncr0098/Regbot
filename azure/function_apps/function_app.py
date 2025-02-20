@@ -22,59 +22,62 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
     try:
         logging.info('Python HTTP trigger function processed a request.')
 
-        req_body = req.get_json()
-        file_url = req_body.get('fileUrl')
-        if file_url:
-            logging.info(f"File URL: {file_url}")
+        # req_body = req.get_json()
 
-            # .envファイルを読み込む
-            load_dotenv()
+        # .envファイルを読み込む
+        load_dotenv()
 
-            # AzureOpenAI関連
-            azure_openai_api_key = os.getenv('AZURE_OPENAI_API_KEY')
-            azure_openai_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
-            deployment_name = os.getenv('DEPLOYMENT_NAME')
-            azure_openai_api_version = os.getenv('AZURE_OPENAI_API_VERSION')
-            embedding_model_name = os.getenv('EMBEDDING_MODEL_NAME')
+        # AzureOpenAI関連
+        azure_openai_api_key = os.getenv('AZURE_OPENAI_API_KEY')
+        azure_openai_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
+        deployment_name = os.getenv('DEPLOYMENT_NAME')
+        azure_openai_api_version = os.getenv('AZURE_OPENAI_API_VERSION')
+        embedding_model_name = os.getenv('EMBEDDING_MODEL_NAME')
 
-            # AI Search関連
-            indexer_api_key = os.getenv('INDEXER_API_KEY')
-            indexer_endpoint = os.getenv('INDEXER_ENDPOINT')
+        # AI Search関連
+        indexer_api_key = os.getenv('INDEXER_API_KEY')
+        indexer_endpoint = os.getenv('INDEXER_ENDPOINT')
 
-            # EntraID、GraphAPI関連
-            entra_client_id = os.getenv('ENTRA_CLIENT_ID')
-            entra_client_secret = os.getenv('ENTRA_CLIENT_SECRET')
-            entra_authority_url = os.getenv('ENTRA_AUTHORITY_URL')
-            entra_tenant_id = os.getenv('ENTRA_TENANT_ID')
-            graph_api_default_scope = os.getenv('GRAPH_API_DEFAULT_SCOPE')
-            graph_api_resource = os.getenv('GRAPH_API_RESOURCE')
-            power_platform_environment_url = os.getenv('POWER_PLATFORM_ENVIRONMENT_URL')
-            dataverse_entity_name = os.getenv('DATAVERSE_ENTITY_NAME')
+        # EntraID、GraphAPI関連
+        entra_client_id = os.getenv('ENTRA_CLIENT_ID')
+        entra_client_secret = os.getenv('ENTRA_CLIENT_SECRET')
+        entra_authority_url = os.getenv('ENTRA_AUTHORITY_URL')
+        entra_tenant_id = os.getenv('ENTRA_TENANT_ID')
+        graph_api_default_scope = os.getenv('GRAPH_API_DEFAULT_SCOPE')
+        graph_api_resource = os.getenv('GRAPH_API_RESOURCE')
+        power_platform_environment_url = os.getenv('POWER_PLATFORM_ENVIRONMENT_URL')
+        dataverse_entity_name = os.getenv('DATAVERSE_ENTITY_NAME')
 
-            # 各種サービス初期化
-            pdf_reader_service = PDFReaderService()
-            openai_service = OpenAIService(
-                deployment_name=deployment_name
-                , api_version=azure_openai_api_version
-                , embedding_model_name=embedding_model_name
-                , openai_api_key=azure_openai_api_key
-                , openai_endpoint=azure_openai_endpoint
-                )
-            text_processing_service = TextProcessingService(openai_service=openai_service)
-            indexer_service = IndexerService(indexer_api_key=indexer_api_key, indexer_endpoint=indexer_endpoint)
-            graph_api_service = GraphAPIService(
-                client_id=entra_client_id
-                , client_secret=entra_client_secret
-                , tenant_id=entra_tenant_id
-                , authority=entra_authority_url
-                , scope=[graph_api_default_scope]
-                , resource=graph_api_resource
-                )
-            dataverse_service = DataverseService(environment_url=power_platform_environment_url
-                                                , entra_client_id=entra_client_id
-                                                , entra_client_secret=entra_client_secret
-                                                , authority=entra_authority_url)
-
+        # 各種サービス初期化
+        pdf_reader_service = PDFReaderService()
+        openai_service = OpenAIService(
+            deployment_name=deployment_name
+            , api_version=azure_openai_api_version
+            , embedding_model_name=embedding_model_name
+            , openai_api_key=azure_openai_api_key
+            , openai_endpoint=azure_openai_endpoint
+            )
+        text_processing_service = TextProcessingService(openai_service=openai_service)
+        indexer_service = IndexerService(indexer_api_key=indexer_api_key, indexer_endpoint=indexer_endpoint)
+        graph_api_service = GraphAPIService(
+            client_id=entra_client_id
+            , client_secret=entra_client_secret
+            , tenant_id=entra_tenant_id
+            , authority=entra_authority_url
+            , scope=[graph_api_default_scope]
+            , resource=graph_api_resource
+            )
+        dataverse_service = DataverseService(environment_url=power_platform_environment_url
+                                            , entra_client_id=entra_client_id
+                                            , entra_client_secret=entra_client_secret
+                                            , authority=entra_authority_url)
+        
+        # Dataverseからレコード取得
+        records = dataverse_service.entity.read(select=["cr261_source_name", "cr261_sharepoint_url"], filter="cr261_indexed eq '0'", order_by="cr261_pdf_last_modified_datetime")
+        
+        # 1行ごとにAISearchへの挿入作業
+        for item in records:
+            file_url = item["cr261_sharepoint_url"]
             # 本日日付時刻を取得
             current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -136,10 +139,10 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
             logging.info("start register record to AI Search")
             indexer_service.register_record(record=record)
             logging.info("done register record to AI Search")
-            return func.HttpResponse(
-                "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
-                status_code=200
-            )
+        return func.HttpResponse(
+            "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
+            status_code=200
+        )
     except Exception as e:
         logging.error(f"Error occured: {e}")
 
