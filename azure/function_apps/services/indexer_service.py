@@ -119,11 +119,11 @@ class IndexerService:
         # インデックスを作成
         client.create_index(index)
 
-    def register_record(self, record):
-
-        # Pydanticモデルを使用して結果を検証
+    def register_records(self, records: list):
+        
         try:
-            document = Document(**record)
+            # Pydanticモデルを使用して結果を検証
+            [Document(**record) for record in records]
 
             # インデックスを作成するためのクライアント
             credential = AzureKeyCredential(self.indexer_api_key)
@@ -132,14 +132,14 @@ class IndexerService:
             search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)
 
             # データをAzure Cognitive Searchに登録
-            result = search_client.upload_documents(documents=[record])[0]
-            logging.info("Document uploaded successfully.")
+            result = search_client.upload_documents(documents=records)
 
             status = getattr(result, "status_code")
             
             if status != 200 and status != 201:
                 logging.error(getattr(result, "error_message"))
                 raise Exception
+            logging.info("Document uploaded successfully.")
 
         except ValidationError as e:
             logging.error(f"Validation error: {e.json()}")

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 class TitleAndSummary(BaseModel):
     title: str = Field(..., title="文書のタイトル")
@@ -30,3 +31,31 @@ class Document(BaseModel):
     title: str
     registered_date: str
     tokens_of_sentence: str
+
+class DataversePdfStatus(BaseModel):
+    odata_etag: Optional[str] = Field(None, alias='@odata.etag')
+    _createdby_value: Optional[str] = None
+    cr261_pdf_storageid: Optional[str] = None
+    statuscode: Optional[int] = None
+    cr261_pdf_url: Optional[str] = None
+    _modifiedonbehalfby_value: Optional[str] = None
+    importsequencenumber: Optional[int] = None
+    _owningbusinessunit_value: Optional[str] = None
+    overriddencreatedon: Optional[str] = None
+    cr261_source_name: Optional[str] = None
+    _owninguser_value: Optional[str] = None
+    cr261_sharepoint_url: Optional[str] = None
+    utcconversiontimezonecode: Optional[int] = None
+    _owningteam_value: Optional[str] = None
+    _createdonbehalfby_value: Optional[str] = None
+    cr261_indexed: Optional[str] = None
+    modifiedon: Optional[str] = None
+    _modifiedby_value: Optional[str] = None
+    versionnumber: Optional[int] = None
+    statecode: Optional[int] = None
+    _ownerid_value: Optional[str] = None
+    timezoneruleversionnumber: Optional[int] = None
+    cr261_pdf_last_modified_datetime: Optional[str] = None
+    cr261_status: Optional[int] = None
+    createdon: Optional[str] = None
+    cr261_timestamp: Optional[str] = None

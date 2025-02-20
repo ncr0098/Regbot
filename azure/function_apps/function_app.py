@@ -19,6 +19,7 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
     from services.dataverse_service import DataverseService
     import os
     from dotenv import load_dotenv
+    from typing import Any, Collection, MutableMapping
     try:
         logging.info('Python HTTP trigger function processed a request.')
 
@@ -74,11 +75,13 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                                             , entity_logical_name=dataverse_entity_name)
         
         # Dataverseからレコード取得
-        records = dataverse_service.entity.read(select=["cr261_source_name", "cr261_sharepoint_url"], filter="cr261_indexed eq '0'", order_by="cr261_pdf_last_modified_datetime")
-        
+        dataverse_records = dataverse_service.entity.read(select=["cr261_source_name", "cr261_sharepoint_url"], filter="cr261_indexed eq '0'", order_by="cr261_pdf_last_modified_datetime")
+        records_for_aisearch = []
+        records_for_upsert_dataverse = []
         # 1行ごとにAISearchへの挿入作業
-        for item in records:
-            file_url = item["cr261_sharepoint_url"]
+        for item in dataverse_records:
+            item_dbmodel = dataverse_service.transform_record_dict_to_model_instance(item)
+            file_url = item_dbmodel.cr261_sharepoint_url
             # 本日日付時刻を取得
             current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -135,11 +138,24 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                         "registered_date": registered_date,
                         "tokens_of_sentence": str(openai_service.num_tokens(md_text))
                     }
+            records_for_aisearch.append(record)
+            records_for_upsert_dataverse.append(item_dbmodel)
 
-            # AI Searchに登録
-            logging.info("start register record to AI Search")
-            indexer_service.register_record(record=record)
-            logging.info("done register record to AI Search")
+        # AI Searchに登録
+        logging.info("start register record to AI Search")
+        indexer_service.register_records(records=records_for_aisearch)
+        logging.info("done register record to AI Search")
+
+        # Dataverseの該当レコードをアップデート
+        logging.info("start update record on Dataverse")
+        result = dataverse_service.entity.upsert(data=[model.dict(by_alias=True) for model in records_for_upsert_dataverse], mode="batch")
+        status_code = result[0].status_code
+        if status_code >= 300: # ステータスコードがIntで返ってくることを利用して表現
+            logging.error(result[0].text)
+            raise Exception
+        
+        logging.info("done update record on Dataverse")
+
         return func.HttpResponse(
             "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
             status_code=200
