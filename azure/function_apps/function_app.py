@@ -70,7 +70,8 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         dataverse_service = DataverseService(environment_url=power_platform_environment_url
                                             , entra_client_id=entra_client_id
                                             , entra_client_secret=entra_client_secret
-                                            , authority=entra_authority_url)
+                                            , authority=entra_authority_url
+                                            , entity_logical_name=dataverse_entity_name)
         
         # Dataverseからレコード取得
         records = dataverse_service.entity.read(select=["cr261_source_name", "cr261_sharepoint_url"], filter="cr261_indexed eq '0'", order_by="cr261_pdf_last_modified_datetime")
