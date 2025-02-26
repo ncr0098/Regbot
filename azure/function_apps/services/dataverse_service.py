@@ -24,6 +24,7 @@ class DataverseService:
 
         # Instantiate DataverseClient
         self.client = DataverseClient(session=session, environment_url=environment_url)
+
         self.entity = self.client.entity(logical_name=entity_logical_name)
 
     def transform_record_dict_to_model_instance(self, record_dict):
