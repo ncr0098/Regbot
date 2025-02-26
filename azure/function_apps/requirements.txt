@@ -13,3 +13,4 @@ azure-search-documents
 msal-requests-auth
 dataverse-api
 python-dotenv
+openpyxl
