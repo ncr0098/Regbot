@@ -35,7 +35,16 @@ class TextProcessingService:
     
     def generate_keywords(self, document_text):
         try:
-            message = f"Extract about less than 20 keywords from the following text.{document_text}"
+            message = f"""Execute followings.
+            1. Extract about less than 20 keywords from the following text.
+            ===TEXT START===
+            {document_text}
+             ===TEXT END===
+            
+            2. Confirm whether output is written in English. If not, translate it into English.
+
+            NOTE: Output MUST be English.
+            """
             keywords = self.openai_service.call_openai_api(message=message, output_schema=Keywords)
 
             return keywords.keywords
