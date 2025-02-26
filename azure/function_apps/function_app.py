@@ -50,6 +50,8 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         graph_api_resource = os.getenv('GRAPH_API_RESOURCE')
         power_platform_environment_url = os.getenv('POWER_PLATFORM_ENVIRONMENT_URL')
         dataverse_entity_name = os.getenv('DATAVERSE_ENTITY_NAME')
+        site_id = os.getenv("SITE_ID")
+        drive_id = os.getenv("DRIVE_ID")
 
         # 各種サービス初期化
         pdf_reader_service = PDFReaderService()
@@ -87,18 +89,14 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         # 1行ごとにAISearchへの挿入作業
         for item in dataverse_records:
             item_dbmodel = dataverse_service.transform_record_dict_to_model_instance(item)
-            file_url = item_dbmodel.cr261_sharepoint_url
+            directory_path = item_dbmodel.cr261_sharepoint_directory
+            object_file_name = item_dbmodel.cr261_sharepoint_file_name
+            # APIエンドポイント
+            file_url = f' https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/root:{directory_path}/{object_file_name}:/content'
 
             # TODO: status=1 then delete AI search P then register
             if item_dbmodel.cr261_status == 1:
-
-                # Sharepointに格納されたファイルのURLで検索
-                # 1件しか取得されない前提
-                search_results = indexer_service.search(search_text=item_dbmodel.cr261_sharepoint_url
-                                                        , select="id")
-                for result in search_results:
-                    _id = result["id"]
-                    id_list_for_aisearch_delete.append(_id)
+                id_list_for_aisearch_delete.append(item_dbmodel.cr261_sharepoint_item_id)
             else:
                 # 本日日付時刻を取得
                 current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -191,4 +189,4 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
             status_code=200
         )
     except Exception as e:
-        logging.error(f"Error occured: {e}", stack_info=True)
+        logging.error(f"Error occured: {e}")

@@ -7,5 +7,5 @@ class PDFReaderService:
             md_text = pymupdf4llm.to_markdown(file_path)
             return md_text
         except Exception as e:
-            logging.error(f"Error reading PDF: {e}")
+            logging.error(f"Error reading PDF: {e}", stack_info=True)
             raise

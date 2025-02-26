@@ -30,7 +30,7 @@ class TextProcessingService:
 
             return title_and_summary.title, title_and_summary.summary
         except Exception as e:
-            logging.error(f"generating title and summary error: {e}")
+            logging.error(f"generating title and summary error: {e}", stack_info=True)
             raise
     
     def generate_keywords(self, document_text):
@@ -49,7 +49,7 @@ class TextProcessingService:
 
             return keywords.keywords
         except Exception as e:
-            logging.error(f"generating keywords error: {e}")
+            logging.error(f"generating keywords error: {e}", stack_info=True)
             raise
     
     def generate_refined_questions(self, title, summary, keywords):
@@ -169,7 +169,7 @@ class TextProcessingService:
 
             return question.question
         except Exception as e:
-            logging.error(f"generating refined question error: {e}")
+            logging.error(f"generating refined question error: {e}", stack_info=True)
             raise
 
     def process_text(self, text):
@@ -187,5 +187,5 @@ class TextProcessingService:
                 "question": question
             }
         except Exception as e:
-            print(f"Error processing text: {e}")
+            print(f"Error processing text: {e}", stack_info=True)
             raise
