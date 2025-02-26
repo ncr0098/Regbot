@@ -79,7 +79,7 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                                             , entity_logical_name=dataverse_entity_name)
         
         # Dataverseからレコード取得
-        dataverse_records = dataverse_service.entity.read(select=["cr261_source_name", "cr261_sharepoint_url"], filter="cr261_indexed eq '0'", order_by="cr261_pdf_last_modified_datetime")
+        dataverse_records = dataverse_service.entity.read(select=["*"], filter="cr261_indexed eq '0'", order_by="cr261_pdf_last_modified_datetime")
         records_for_aisearch = []
         id_list_for_aisearch_delete = []
         records_for_upsert_dataverse = []
@@ -190,4 +190,4 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
             status_code=200
         )
     except Exception as e:
-        logging.error(f"Error occured: {e}")
+        logging.error(f"Error occured: {e}", stack_info=True)
