@@ -44,7 +44,7 @@ class DataversePdfStatus(BaseModel):
     overriddencreatedon: Optional[str] = None
     cr261_source_name: Optional[str] = None
     _owninguser_value: Optional[str] = None
-    cr261_sharepoint_url: Optional[str] = None
+    cr261_sharepoint_web_url: Optional[str] = None
     utcconversiontimezonecode: Optional[int] = None
     _owningteam_value: Optional[str] = None
     _createdonbehalfby_value: Optional[str] = None

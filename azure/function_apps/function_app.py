@@ -80,13 +80,14 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         
         # Dataverseからレコード取得
         dataverse_records = dataverse_service.entity.read(select=["*"], filter="cr261_indexed eq '0'", order_by="cr261_pdf_last_modified_datetime")
+        # TODO: nakattatoki
         records_for_aisearch = []
         id_list_for_aisearch_delete = []
         records_for_upsert_dataverse = []
         # 1行ごとにAISearchへの挿入作業
         for item in dataverse_records:
             item_dbmodel = dataverse_service.transform_record_dict_to_model_instance(item)
-            file_url = item_dbmodel.cr261_sharepoint_url
+            file_url = item_dbmodel.cr261_sharepoint_web_url
 
             # TODO: status=1 then delete AI search P then register
             if item_dbmodel.cr261_status == 1:
