@@ -60,3 +60,5 @@ class DataversePdfStatus(BaseModel):
     createdon: Optional[str] = None
     cr261_timestamp: Optional[str] = None
     cr261_sharepoint_item_id: Optional[str] = None
+    cr261_sharepoint_directory: Optional[str] = None
+    cr261_sharepoint_file_name: Optional[str] = None

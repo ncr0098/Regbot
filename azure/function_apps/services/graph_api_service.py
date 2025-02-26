@@ -47,7 +47,7 @@ class GraphAPIService:
                 logging.error(f"ファイルのダウンロードに失敗しました。ステータスコード: {response.status_code}")
                 raise Exception
         except Exception as e:
-            logging.error(f"GraphAPI request error: {e}")
+            logging.error(f"GraphAPI request error: {e}", stack_info=True)
             raise
 
     
