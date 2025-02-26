@@ -1,6 +1,5 @@
 {
-  "@odata.etag": "\"0x8DD4FFD16CBC58B\"",
-  "name": "external_file_info",
+  "name": "external_file_info_sample",
   "fields": [
     {
       "name": "id",
@@ -121,6 +120,19 @@
     },
     {
       "name": "title",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    },
+    {
+      "name": "filename",
       "type": "Edm.String",
       "searchable": true,
       "filterable": true,
