@@ -87,7 +87,7 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         # 1行ごとにAISearchへの挿入作業
         for item in dataverse_records:
             item_dbmodel = dataverse_service.transform_record_dict_to_model_instance(item)
-            file_url = item_dbmodel.cr261_sharepoint_web_url
+            file_url = item_dbmodel.cr261_sharepoint_url
 
             # TODO: status=1 then delete AI search P then register
             if item_dbmodel.cr261_status == 1:
