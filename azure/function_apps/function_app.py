@@ -130,11 +130,8 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                     logging.info("start generating refined question")
                     refined_question = text_processing_service.generate_refined_questions(title=title, summary=summary, keywords=keywords)
                     logging.info("done generating refined question")
-
-                    # 組織の判別
-                    logging.info("start judging organization")
-                    organization = text_processing_service.judge_organization_by_domain(url=file_url)
-                    logging.info("end judging organization")
+                    
+                    organization = item_dbmodel.cr261_source_name
 
                     # 登録日生成
                     registered_date = datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
