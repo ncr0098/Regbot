@@ -39,6 +39,7 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         # AI Search関連
         indexer_api_key = os.getenv('INDEXER_API_KEY')
         indexer_endpoint = os.getenv('INDEXER_ENDPOINT')
+        indexer_name = os.getenv('INDEXER_NAME')
 
         # EntraID、GraphAPI関連
         entra_client_id = os.getenv('ENTRA_CLIENT_ID')
@@ -60,7 +61,9 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
             , openai_endpoint=azure_openai_endpoint
             )
         text_processing_service = TextProcessingService(openai_service=openai_service)
-        indexer_service = IndexerService(indexer_api_key=indexer_api_key, indexer_endpoint=indexer_endpoint)
+        indexer_service = IndexerService(indexer_api_key=indexer_api_key,
+                                         indexer_endpoint=indexer_endpoint,
+                                         indexer_name=indexer_name)
         graph_api_service = GraphAPIService(
             client_id=entra_client_id
             , client_secret=entra_client_secret
@@ -78,74 +81,99 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         # Dataverseからレコード取得
         dataverse_records = dataverse_service.entity.read(select=["cr261_source_name", "cr261_sharepoint_url"], filter="cr261_indexed eq '0'", order_by="cr261_pdf_last_modified_datetime")
         records_for_aisearch = []
+        id_list_for_aisearch_delete = []
         records_for_upsert_dataverse = []
         # 1行ごとにAISearchへの挿入作業
         for item in dataverse_records:
             item_dbmodel = dataverse_service.transform_record_dict_to_model_instance(item)
             file_url = item_dbmodel.cr261_sharepoint_url
-            # 本日日付時刻を取得
-            current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            # 保存するファイル名を作成
-            savefile_name= f"{current_time}_{file_url.split('/')[-1]}"
+            # TODO: status=1 then delete AI search P then register
+            if item_dbmodel.cr261_status == 1:
 
-            # ファイルをダウンロードし、ダウンロード先の絶対パス入手
-            absolute_path = graph_api_service.download_file_from_sharepoint(file_url=file_url, file_name=savefile_name)
-            logging.info(f"pdf downloaded to {absolute_path}")
+                # Sharepointに格納されたファイルのURLで検索
+                # 1件しか取得されない前提
+                search_results = indexer_service.search(search_text=item_dbmodel.cr261_sharepoint_url
+                                                        , select="id")
+                for result in search_results:
+                    _id = result["id"]
+                    id_list_for_aisearch_delete.append(_id)
+            else:
+                # 本日日付時刻を取得
+                current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            # テキスト抽出
-            logging.info("start reading pdf")
-            md_text = pdf_reader_service.read_pdf(file_path=absolute_path)
-            logging.info("done reading pdf")
+                # 保存するファイル名を作成
+                savefile_name= f"{current_time}_{file_url.split('/')[-1]}"
 
-            # タイトル、要約抽出
-            logging.info("start generating title and summary")
-            title, summary = text_processing_service.generate_title_and_summary(document_text=md_text)
-            logging.info("done generating title and summary")
+                # ファイルをダウンロードし、ダウンロード先の絶対パス入手
+                absolute_path = graph_api_service.download_file_from_sharepoint(file_url=file_url, file_name=savefile_name)
+                logging.info(f"pdf downloaded to {absolute_path}")
 
-            # キーワード抽出
-            logging.info("start generating keywords")
-            keywords = text_processing_service.generate_keywords(document_text=md_text)
-            logging.info("done generating keywords")
+                # テキスト抽出
+                logging.info("start reading pdf")
+                md_text = pdf_reader_service.read_pdf(file_path=absolute_path)
+                logging.info("done reading pdf")
 
-            # 想定質問生成
-            logging.info("start generating refined question")
-            refined_question = text_processing_service.generate_refined_questions(title=title, summary=summary, keywords=keywords)
-            logging.info("done generating refined question")
+                # タイトル、要約抽出
+                logging.info("start generating title and summary")
+                title, summary = text_processing_service.generate_title_and_summary(document_text=md_text)
+                logging.info("done generating title and summary")
 
-            # 組織の判別
-            logging.info("start judging organization")
-            organization = text_processing_service.judge_organization_by_domain(url=file_url)
-            logging.info("end judging organization")
+                # キーワード抽出
+                logging.info("start generating keywords")
+                keywords = text_processing_service.generate_keywords(document_text=md_text)
+                logging.info("done generating keywords")
 
-            # 登録日生成
-            registered_date = datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+                # 想定質問生成
+                logging.info("start generating refined question")
+                refined_question = text_processing_service.generate_refined_questions(title=title, summary=summary, keywords=keywords)
+                logging.info("done generating refined question")
 
-            LETTERS_PER_FACTOR = 16382 # AI Searchに格納するために分割するbyte数の単位
-            text_list = [ md_text [ i:i+ LETTERS_PER_FACTOR] for i in range( 0, len(md_text),LETTERS_PER_FACTOR)]
+                # 組織の判別
+                logging.info("start judging organization")
+                organization = text_processing_service.judge_organization_by_domain(url=file_url)
+                logging.info("end judging organization")
 
-            id = base64.b64encode(f"{file_url}{registered_date}".encode()).decode()
-            record = {
-                        "id": id,
-                        "URL": file_url,
-                        "organization": organization,
-                        "sentence": text_list,
-                        "refined_question": refined_question,
-                        "embedded_sentence": openai_service.generate_embeddings(md_text),
-                        "embedded_refined_question": openai_service.generate_embeddings(refined_question),
-                        "summary": summary,
-                        "keywords": keywords,
-                        "title": title,
-                        "registered_date": registered_date,
-                        "tokens_of_sentence": str(openai_service.num_tokens(md_text))
-                    }
-            records_for_aisearch.append(record)
+                # 登録日生成
+                registered_date = datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+
+                LETTERS_PER_FACTOR = 16382 # AI Searchに格納するために分割するbyte数の単位
+                text_list = [ md_text [ i:i+ LETTERS_PER_FACTOR] for i in range( 0, len(md_text),LETTERS_PER_FACTOR)]
+
+                id = base64.b64encode(f"{file_url}{registered_date}".encode()).decode()
+                record = {
+                            "id": id,
+                            "URL": file_url,
+                            "organization": organization,
+                            "sentence": text_list,
+                            "refined_question": refined_question,
+                            "embedded_sentence": openai_service.generate_embeddings(md_text),
+                            "embedded_refined_question": openai_service.generate_embeddings(refined_question),
+                            "summary": summary,
+                            "keywords": keywords,
+                            "title": title,
+                            "filename": item_dbmodel.cr261_source_name,
+                            "registered_date": registered_date,
+                            "tokens_of_sentence": str(openai_service.num_tokens(md_text))
+                        }
+                records_for_aisearch.append(record)
+
+            # AISearchに対して削除だろうと登録だろうと、Dataverseの該当レコードには更新が発生
+            item_dbmodel.cr261_indexed = "1"
             records_for_upsert_dataverse.append(item_dbmodel)
 
+        # AI Searchから削除
+        if len(id_list_for_aisearch_delete) > 0:
+            logging.info("start delete record from AI Search")
+            for eachid in id_list_for_aisearch_delete:
+                indexer_service.delete_record({"id": eachid})
+            logging.info("done delete record from AI Search")
+        
         # AI Searchに登録
-        logging.info("start register record to AI Search")
-        indexer_service.register_records(records=records_for_aisearch)
-        logging.info("done register record to AI Search")
+        if len(records_for_aisearch) > 0:
+            logging.info("start register record to AI Search")
+            indexer_service.register_records(records=records_for_aisearch)
+            logging.info("done register record to AI Search")
 
         # Dataverseの該当レコードをアップデート
         logging.info("start update record on Dataverse")
