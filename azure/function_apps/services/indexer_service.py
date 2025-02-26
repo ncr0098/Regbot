@@ -161,7 +161,7 @@ class IndexerService:
             logging.info("Document uploaded successfully.")
 
         except ValidationError as e:
-            logging.error(f"Validation error: {e.json()}")
+            logging.error(f"Validation error: {e.json()}", stack_info=True)
             raise
 
     def delete_record(self, query: list):
@@ -175,7 +175,7 @@ class IndexerService:
 
             return result
         except Exception as e:
-            logging.error(f"delete failed: {e.json()}")
+            logging.error(f"delete failed: {e.json()}", stack_info=True)
             raise
 
 
@@ -191,5 +191,5 @@ class IndexerService:
             
             return results
         except Exception as e:
-            logging.error(f"delete failed: {e.json()}")
+            logging.error(f"delete failed: {e.json()}", stack_info=True)
             raise
