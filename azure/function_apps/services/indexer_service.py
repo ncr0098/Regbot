@@ -25,13 +25,13 @@ from azure.search.documents.indexes.models import (
 )
 from models.model import Document
 from pydantic import ValidationError
-import logging
+import logging,requests
 
 class IndexerService:
-    def __init__(self, indexer_api_key, indexer_endpoint):
+    def __init__(self, indexer_api_key, indexer_endpoint, indexer_name):
         self.indexer_api_key = indexer_api_key
         self.indexer_endpoint = indexer_endpoint
-        self.index_name = "external_file_info"
+        self.index_name = indexer_name
         self.fields = [
                 SimpleField(name="id", type=SearchFieldDataType.String, key=True, searchable=False, filterable=False, sortable=False, facetable=False),
                 SearchableField(name="URL", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
@@ -43,6 +43,7 @@ class IndexerService:
                 SearchableField(name="summary", type=SearchFieldDataType.String, searchable=False, facetable=True, filterable=True, sortable=True),
                 SearchField(name="keywords", type=SearchFieldDataType.Collection(SearchFieldDataType.String), facetable=True, filterable=True, analyzer_name="standard.lucene"),
                 SearchableField(name="title", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
+                SearchableField(name="filename", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
                 SearchableField(name="registered_date", type=SearchFieldDataType.String, searchable=False, facetable=True, filterable=True, sortable=True),
                 SearchableField(name="tokens_of_sentence", type=SearchFieldDataType.String, facetable=True, filterable=True, sortable=True, analyzer_name="standard.lucene"),
             ]
@@ -119,11 +120,27 @@ class IndexerService:
         # インデックスを作成
         client.create_index(index)
 
-    def register_record(self, record):
-
-        # Pydanticモデルを使用して結果を検証
+    def create_index_from_json(self, index: str) -> bytes:
+        """Azure AI Search のインデックス定義 (JSON 文字列) からインデックスを作成する"""
+        url = f"{self.indexer_endpoint}/indexes?api-version=2024-07-01"
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": self.indexer_api_key
+        }
         try:
-            document = Document(**record)
+            response = requests.post(url, index, headers)
+            print(response.json())
+
+            # TODO: solve 403 issue
+            
+        except Exception as err:
+            return err.fp.read()
+
+    def register_records(self, records: list):
+        
+        try:
+            # Pydanticモデルを使用して結果を検証
+            [Document(**record) for record in records]
 
             # インデックスを作成するためのクライアント
             credential = AzureKeyCredential(self.indexer_api_key)
@@ -132,25 +149,47 @@ class IndexerService:
             search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)
 
             # データをAzure Cognitive Searchに登録
-            result = search_client.upload_documents(documents=[record])[0]
-            logging.info("Document uploaded successfully.")
+            results = search_client.upload_documents(documents=records)
 
-            status = getattr(result, "status_code")
-            
-            if status != 200 and status != 201:
-                logging.error(getattr(result, "error_message"))
-                raise Exception
+            for result in results:
+                status = getattr(result, "status_code")
+                print(status)
+                
+                if status != 200 and status != 201:
+                    logging.error(getattr(result, "error_message"))
+                    raise Exception
+            logging.info("Document uploaded successfully.")
 
         except ValidationError as e:
             logging.error(f"Validation error: {e.json()}")
             raise
 
     def delete_record(self, query: list):
-         # インデックスを作成するためのクライアント
-        credential = AzureKeyCredential(self.indexer_api_key)
+        try:
+            # インデックスを作成するためのクライアント
+            credential = AzureKeyCredential(self.indexer_api_key)
 
-        # インデックスにデータを追加するためのクライアント
-        search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)
-        result = search_client.delete_documents(documents=query)
+            # インデックスにデータを追加するためのクライアント
+            search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)
+            result = search_client.delete_documents(documents=query)
 
-        print("Delete new document succeeded: {}".format(result[0].succeeded))
+            return result
+        except Exception as e:
+            logging.error(f"delete failed: {e.json()}")
+            raise
+
+
+    def search(self, search_text="*", select='HotelName,Description', include_total_count=True):
+        try:
+            credential = AzureKeyCredential(self.indexer_api_key)
+            search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)
+            # Run an empty query (returns selected fields, all documents)
+            results =  search_client.search(query_type='simple',
+                search_text=search_text ,
+                select=select,
+                include_total_count=include_total_count)
+            
+            return results
+        except Exception as e:
+            logging.error(f"delete failed: {e.json()}")
+            raise
