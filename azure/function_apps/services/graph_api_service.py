@@ -114,12 +114,15 @@ class GraphAPIService:
                 
                 return last_modified_converted, file_name
             
-            # elif response.status_code == 302:
+            # elif response.status_code == 429:
             #     new_url = response.headers["Location"]
             #     print(new_url)
             #     response = requests.get(new_url)
-            #     return response.content
+                # return response.content
             else:
+                failed_header = response.headers.json()
+                print(failed_header)
+
                 logging.error(f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}")
                 raise Exception
         
@@ -137,7 +140,8 @@ class GraphAPIService:
         
         try:  
             # Send a GET request to the URL
-            response = requests.get(web_url, headers=headers, allow_redirects=True)
+            # response = requests.get(web_url, headers=headers, allow_redirects=True)
+            response = requests.get(web_url, headers=headers)
 
             # ステータスコードをチェック
             if response.status_code == 200 \
