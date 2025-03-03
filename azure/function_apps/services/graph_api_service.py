@@ -113,9 +113,14 @@ class GraphAPIService:
                 logging.info(f"ファイルmetadataをwebから取得しました。")
                 
                 return last_modified_converted, file_name
-
+            
+            # elif response.status_code == 302:
+            #     new_url = response.headers["Location"]
+            #     print(new_url)
+            #     response = requests.get(new_url)
+            #     return response.content
             else:
-                logging.error(f"ファイルのダウンロードに失敗しました。ステータスコード: {response.status_code}")
+                logging.error(f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}")
                 raise Exception
         
         except Exception as e:
@@ -132,14 +137,19 @@ class GraphAPIService:
         
         try:  
             # Send a GET request to the URL
-            response = requests.get(web_url, headers=headers)
+            response = requests.get(web_url, headers=headers, allow_redirects=True)
 
             # ステータスコードをチェック
             if response.status_code == 200 \
                     and response.headers.get('Content-Type') == "application/pdf":                
                 
                 return response.content
-
+            # elif response.status_code == 302:
+            #     new_url = response.headers["Location"]
+            #     print(new_url)
+            #     response = requests.get(new_url)
+            #     return response.content
+            
             else:
                 logging.error(f"ファイルのダウンロードに失敗しました。ステータスコード: {response.status_code}")
                 raise Exception
@@ -203,8 +213,8 @@ class GraphAPIService:
 
         retrieve_list_files = []
 
-        # Regex pattern to match retrieve_list_YYYYMMDD_hhmmss.csv
-        pattern = re.compile(r'retrieve_list_(\d{8}_\d{6})\.csv')
+        # Regex pattern to match retrieve_list_YYYYMMDD_hhmmss.xlsx
+        pattern = re.compile(r'retrieve_list_(\d{8}_\d{6})\.xlsx')
 
         for file in retrieval_lists:
             match = pattern.match(file['name'])
