@@ -142,7 +142,7 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                     id = base64.b64encode(f"{file_url}{registered_date}".encode()).decode()
                     record = {
                                 "id": id,
-                                "URL": file_url,
+                                "URL": item_dbmodel.cr261_sharepoint_url,
                                 "organization": organization,
                                 "sentence": text_list,
                                 "refined_question": refined_question,
