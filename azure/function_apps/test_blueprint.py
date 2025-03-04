@@ -90,7 +90,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
     for row in df.itertuples(index=True):
         print(f"\nworking on {row.pdf_url}")
         
-        time.sleep(30)
+        time.sleep(60)
         
         upload_method = "manual" if row.manual_flag == 1 else "automatic"
         source_name = row.source_name
@@ -109,11 +109,11 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                
         # 管理ファイルにレコードが存在し、dataverseに存在しない場合：　
         # →　lenが0となる。新規のレコードをdataverseに追加する必要あり
-        if len(records) == 0:
-            
+        if len(records) == 0: # statusがなんであろうとsharepointに格納し、dataverseに書きこむ
+            print("no entry in dataverse...")
             # ファイル名と最終更新日を取得
             web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
-            time.sleep(10)
+            time.sleep(5)
             # PDFファイルをwebから取得
             file_content = graph_api_service.download_file_from_web(web_url=web_url)
 
