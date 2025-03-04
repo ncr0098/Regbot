@@ -90,7 +90,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
     for row in df.itertuples(index=True):
         print(f"\nworking on {row.pdf_url}")
         
-        time.sleep(60)
+        time.sleep(2)
         
         upload_method = "manual" if row.manual_flag == 1 else "automatic"
         source_name = row.source_name
@@ -111,26 +111,53 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         # →　lenが0となる。新規のレコードをdataverseに追加する必要あり
         if len(records) == 0: # statusがなんであろうとsharepointに格納し、dataverseに書きこむ
             print("no entry in dataverse...")
-            # ファイル名と最終更新日を取得
-            web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
-            time.sleep(5)
-            # PDFファイルをwebから取得
-            file_content = graph_api_service.download_file_from_web(web_url=web_url)
+            
+            # dataverseに書き込む。ファイル格納方法により変数の取得方法が変わる。
+            if "automatic" in upload_method:
 
-            # PDFファイルをsharepointへ格納
-            pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
-            sharepoint_upload_endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{parent_id}:/{pdf_joined_name}:/content"
-            file_upload_graph_data = graph_api_service.upload_file_to_sharepoint(file_content, pdf_file_name, sharepoint_upload_endpoint)
-            # print("upload file to sharepoint: \n", file_upload_graph_data)
+                # ファイル名と最終更新日を取得
+                web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
+                time.sleep(50)
+                # PDFファイルをwebから取得
+                file_content = graph_api_service.download_file_from_web(web_url=web_url)
 
-            # dataverse準備
-            # 格納方法がautomaticであればwebの最終更新日を、manualであれば格納した日付を設定
-            last_modified = web_last_modified_date if upload_method == "automatic" else file_upload_graph_data["lastModifiedDateTime"]
-            sharepoint_item_id = file_upload_graph_data["id"]
-            sharepoint_web_url = file_upload_graph_data["webUrl"]
+                # PDFファイルをsharepointへ格納
+                pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
+                sharepoint_upload_endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{parent_id}:/{pdf_joined_name}:/content"
+                file_upload_graph_data = graph_api_service.upload_file_to_sharepoint(file_content, pdf_file_name, sharepoint_upload_endpoint)
+                # print("upload file to sharepoint: \n", file_upload_graph_data)
+
+                # dataverse準備
+                # 格納方法がautomaticであればwebの最終更新日を、manualであれば格納した日付を設定
+                last_modified = web_last_modified_date # if upload_method == "automatic" else file_upload_graph_data["lastModifiedDateTime"]
+                sharepoint_item_id = file_upload_graph_data["id"]
+                sharepoint_web_url = file_upload_graph_data["webUrl"]
+                
+                
+            
+            else: # when upload_method is manual  
+                # TODO: ファイル名が異なりエラーになっても処理を止めないようにする
+                # IMPORTANT: "/dev/manual/PMDA/000206143.pdf" の形式で管理ファイルのsharepoint_urlに書いてもらう必要あり
+                joined_directory_and_filename = row.sharepoint_url 
+                # ファイルが同じ名称で置き換わっている可能性を考慮し、item_idでなくファイル名で取得
+                get_file_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:{joined_directory_and_filename}"
+                sharepoint_file_metadata = graph_api_service.graph_api_get(get_file_url).json()
+                
+                # print(sharepoint_file_metadata)
+
+                sharepoint_last_modified_date = sharepoint_file_metadata["lastModifiedDateTime"]
+                last_modified = sharepoint_last_modified_date
+                sharepoint_item_id = sharepoint_file_metadata["id"]
+                sharepoint_web_url = sharepoint_file_metadata["webUrl"]
+                pdf_file_name = sharepoint_file_metadata["name"]
+                
+                # get pdf
+                pdf_storage_directory_path = os.path.dirname(f"{joined_directory_and_filename}")
+                source_name = pdf_storage_directory_path.split("/")[-1]
+
+                
             generated_uuid = uuid.uuid4() # dataverse tableのレコードのキー
-            date_now = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
-
+            time_first_written_to_dataverse = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
             # # dataverseの書き込み
             record_dict = {
                 "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
@@ -143,7 +170,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                 "cr261_status": f"{status}",
                 "cr261_sharepoint_item_id": f"{sharepoint_item_id}", #sharepointに格納されたid
                 "cr261_sharepoint_file_name": f"{pdf_file_name}",
-                "cr261_timestamp": f"{date_now}",
+                "cr261_timestamp": f"{time_first_written_to_dataverse}",
                 "cr261_indexed": "0"
             }
 
@@ -171,7 +198,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             # print("is nan?:", pd.isna(row.sharepoint_url))
             # if not pd.isna(row.sharepoint_url) and (f"/{environment}/manual/" in row.sharepoint_url \
             #                                         or f"{environment}%2Fmanual%2F"in row.sharepoint_url):
-            if row.manual_flag == 1:
+            if "manual" in upload_method:
                 # マニュアル格納されたファイルのindex要否チェック
                 
                 # dataverseとsharepoint file metadataのmodified dateを比較
