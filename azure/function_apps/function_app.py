@@ -156,7 +156,7 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                                 "summary": summary,
                                 "keywords": keywords,
                                 "title": title,
-                                "filename": item_dbmodel.cr261_source_name,
+                                "filename": item_dbmodel.cr261_sharepoint_file_name,
                                 "registered_date": registered_date,
                                 "tokens_of_sentence": str(openai_service.num_tokens(md_text))
                             }
