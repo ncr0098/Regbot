@@ -1,9 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
-class TitleAndSummary(BaseModel):
+class TitleSummaryKeywords(BaseModel):
     title: str = Field(..., title="文書のタイトル")
     summary: str = Field(..., title="文書の要約")
+    keywords: list[str] = Field(..., title="文書のキーワード")
     
 class Keywords(BaseModel):
     keywords: list[str] = Field(..., title="文書のキーワード")

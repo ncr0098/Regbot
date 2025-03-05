@@ -10,7 +10,7 @@ app.register_blueprint(bp)
 @app.function_name(name="importFileToAISearch")
 @app.route(route="importFileToAISearch") # HTTP Trigger
 def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
-    from datetime import datetime
+    from datetime import datetime, timedelta
     import base64
 
     from services.pdf_reader_service import PDFReaderService
@@ -107,6 +107,11 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                     # 保存するファイル名を作成
                     savefile_name= f"{current_time}_{file_url.split('/')[-1]}"
 
+                    
+                    # GraphAPIのアクセストークンは1時間で切れてしまう
+                    if datetime.now() >= graph_api_service.token_expires_at - timedelta(minutes=5):
+                        graph_api_service.access_token  = graph_api_service.fetch_access_token([graph_api_default_scope])
+                        logging.info("graph api token refreshed")
                     # ファイルをダウンロードし、ダウンロード先の絶対パス入手
                     absolute_path = graph_api_service.download_file_from_sharepoint(file_url=file_url, file_name=savefile_name)
                     logging.info(f"pdf downloaded to {absolute_path}")
@@ -116,15 +121,15 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                     md_text = pdf_reader_service.read_pdf(file_path=absolute_path)
                     logging.info("done reading pdf")
 
-                    # タイトル、要約抽出
-                    logging.info("start generating title and summary")
-                    title, summary = text_processing_service.generate_title_and_summary(document_text=md_text)
-                    logging.info("done generating title and summary")
+                    # タイトル、要約、キーワード抽出
+                    logging.info("start generating title, summary, keywords")
+                    title, summary, keywords = text_processing_service.generate_title_summary_keywords(document_text=md_text)
+                    logging.info("done generating title, summary, keywords")
 
                     # キーワード抽出
-                    logging.info("start generating keywords")
-                    keywords = text_processing_service.generate_keywords(document_text=md_text)
-                    logging.info("done generating keywords")
+                    # logging.info("start generating keywords")
+                    # keywords = text_processing_service.generate_keywords(document_text=md_text)
+                    # logging.info("done generating keywords")
 
                     # 想定質問生成
                     logging.info("start generating refined question")
@@ -176,6 +181,7 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
 
             # Dataverseの該当レコードをアップデート
             logging.info("start update record on Dataverse")
+            dataverse_service.update_client_and_entity_with_newest_session(dataverse_entity_name)
             result = dataverse_service.entity.upsert(data=[model.dict(by_alias=True) for model in records_for_upsert_dataverse], mode="batch")
             status_code = result[0].status_code
             if status_code >= 300: # ステータスコードがIntで返ってくることを利用して表現

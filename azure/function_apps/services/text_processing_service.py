@@ -1,5 +1,5 @@
 from services.openai_service import OpenAIService
-from models.model import TitleAndSummary, Keywords, RefinedQuestion
+from models.model import TitleSummaryKeywords, Keywords, RefinedQuestion
 import logging
 
 class TextProcessingService:
@@ -23,12 +23,21 @@ class TextProcessingService:
         return org
 
     
-    def generate_title_and_summary(self, document_text):
+    def generate_title_summary_keywords(self, document_text):
         try:
-            message = f"Generate a title and summary for the following document.{document_text}"
-            title_and_summary = self.openai_service.call_openai_api(message=message, output_schema=TitleAndSummary)
+            message = f"""Execute followings.
+            1. Generate a title, summary and extract about less than 20 keywords for the following document.
+            ===DOCUMENT TEXT START===
+            {document_text}
+             ===DOCUMENT TEXT END===
 
-            return title_and_summary.title, title_and_summary.summary
+             2. Confirm whether output is written in English. If not, translate it into English.
+
+            NOTE: Output MUST be English.
+            """
+            title_and_summary = self.openai_service.call_openai_api(message=message, output_schema=TitleSummaryKeywords)
+
+            return title_and_summary.title, title_and_summary.summary, title_and_summary.keywords
         except Exception as e:
             logging.error(f"generating title and summary error: {e}", stack_info=True)
             raise
@@ -187,5 +196,5 @@ class TextProcessingService:
                 "question": question
             }
         except Exception as e:
-            print(f"Error processing text: {e}", stack_info=True)
+            logging.error(f"Error processing text: {e}", stack_info=True)
             raise
