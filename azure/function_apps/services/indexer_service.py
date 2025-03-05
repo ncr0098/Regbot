@@ -153,7 +153,6 @@ class IndexerService:
 
             for result in results:
                 status = getattr(result, "status_code")
-                print(status)
                 
                 if status != 200 and status != 201:
                     logging.error(getattr(result, "error_message"))
@@ -161,7 +160,7 @@ class IndexerService:
             logging.info("Document uploaded successfully.")
 
         except ValidationError as e:
-            logging.error(f"Validation error: {e.json()}", stack_info=True)
+            logging.error(f"Validation error: {e}", stack_info=True)
             raise
 
     def delete_record(self, query: list):
@@ -179,7 +178,7 @@ class IndexerService:
             raise
 
 
-    def search(self, search_text="*", select='HotelName,Description', include_total_count=True):
+    def search(self, search_text="*", select='', include_total_count=True):
         try:
             credential = AzureKeyCredential(self.indexer_api_key)
             search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)

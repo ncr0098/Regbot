@@ -14,3 +14,6 @@ msal-requests-auth
 dataverse-api
 python-dotenv
 openpyxl
+pandas
+ragas==0.2.1
+nltk

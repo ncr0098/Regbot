@@ -1,9 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
-class TitleAndSummary(BaseModel):
+class TitleSummaryKeywords(BaseModel):
     title: str = Field(..., title="文書のタイトル")
     summary: str = Field(..., title="文書の要約")
+    keywords: list[str] = Field(..., title="文書のキーワード")
     
 class Keywords(BaseModel):
     keywords: list[str] = Field(..., title="文書のキーワード")
@@ -62,3 +63,4 @@ class DataversePdfStatus(BaseModel):
     cr261_sharepoint_item_id: Optional[str] = None
     cr261_sharepoint_directory: Optional[str] = None
     cr261_sharepoint_file_name: Optional[str] = None
+    cr261_manual_flag: Optional[int] = None
