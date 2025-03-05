@@ -107,8 +107,8 @@ class GraphAPIService:
                 # TODO: Content-Lengthにサイズ制限を設ける？
 
                 # file_nameを取得
-                # print("header info", response.headers)
-                if web_url.endswith(".pdf"):
+                # print("\nheader info:", response.headers)
+                if web_url.endswith(".pdf") or ".pdf" in web_url: # EMAに".pdf-0"で終わるファイルがあったため
                     file_name = web_url.split("/")[-1]
                 else:
                     file_name = response.headers.get('Content-Disposition').split("filename=")[-1]
@@ -126,10 +126,11 @@ class GraphAPIService:
             #     response = requests.get(new_url)
                 # return response.content
             else:
-                failed_header = response.headers.json()
-                print(failed_header)
+                # failed_header = response.headers.json()
+                # print(failed_header)
 
                 logging.error(f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}")
+                print((f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}"))
                 raise Exception
         
         except Exception as e:
@@ -148,7 +149,7 @@ class GraphAPIService:
             # Send a GET request to the URL
             # response = requests.get(web_url, headers=headers, allow_redirects=True)
             response = requests.get(web_url, headers=headers)
-
+            # print(response.headers)
             # ステータスコードをチェック
             if response.status_code == 200 \
                     and response.headers.get('Content-Type') == "application/pdf":                
