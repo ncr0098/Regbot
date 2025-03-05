@@ -4,7 +4,7 @@ import tempfile
 import os
 import logging
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 
 class GraphAPIService:
@@ -13,7 +13,11 @@ class GraphAPIService:
             client_id, authority=authority,
             client_credential=client_secret
         )
+        self.client_id = client_id
+        self.client_secret = client_secret
         self.tenant_id = tenant_id
+        self.authority = authority
+        self.scope = scope
         self.resource = resource
         self.access_token = self.fetch_access_token(scope)
 
@@ -23,13 +27,15 @@ class GraphAPIService:
             logging.info("No suitable token exists in cache. Let's get a new one from AAD.")
             result = self.app.acquire_token_for_client(scopes=scope)
         access_token = result["access_token"]
+        expires_in = result["expires_in"]
+        self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+
         return access_token
 
     def download_file_from_sharepoint(self, file_url, file_name):
         headers = {
             'Authorization': f'Bearer {self.access_token}'
         }
-        
         try:  
             response = requests.get(file_url, headers=headers, stream=False)
 
@@ -47,7 +53,7 @@ class GraphAPIService:
                 logging.error(f"ファイルのダウンロードに失敗しました。ステータスコード: {response.status_code}")
                 raise Exception
         except Exception as e:
-            logging.error(f"GraphAPI request error: {e}", stack_info=True)
+            logging.error(f"GraphAPI request error: {e}")
             raise
 
     
