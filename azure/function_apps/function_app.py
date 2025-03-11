@@ -19,7 +19,8 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
     from services.indexer_service import IndexerService
     from services.graph_api_service import GraphAPIService
     from services.dataverse_service import DataverseService
-    import os
+    import os,re
+    import urllib.parse
     from dotenv import load_dotenv
     try:
         logging.info('Python HTTP trigger function processed a request.')
@@ -145,6 +146,8 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                     text_list = [ md_text [ i:i+ LETTERS_PER_FACTOR] for i in range( 0, len(md_text),LETTERS_PER_FACTOR)]
 
                     id = base64.b64encode(f"{file_url}{registered_date}".encode()).decode()
+                    # Keys can only contain letters, digits, underscore (_), dash (-), or equal sign (=).
+                    id = re.sub(r'[^a-zA-Z0-9_\-=]', '', id)
                     record = {
                                 "id": id,
                                 "URL": item_dbmodel.cr261_sharepoint_url,
@@ -156,7 +159,7 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
                                 "summary": summary,
                                 "keywords": keywords,
                                 "title": title,
-                                "filename": item_dbmodel.cr261_source_name,
+                                "filename": urllib.parse.unquote(item_dbmodel.cr261_sharepoint_file_name),
                                 "registered_date": registered_date,
                                 "tokens_of_sentence": str(openai_service.num_tokens(md_text))
                             }
