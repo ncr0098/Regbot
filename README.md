@@ -26,7 +26,7 @@ Resource of Regbot
 1. hover your mouse on "Local Project" and click cloud icon
 2. select "az-tak-rnd-adj-genai" --> {target function name}
 3. click "yes" on the dialog
-4. make sure that Azure console on vscode says that Deploy to App "extractfileinfo" Succeeded (it may take few minutes)
+4. make sure that Azure console on vscode says that Deploy to App {target function name} ; such as"extractfileinfo";  Succeeded (it may take few minutes)
 5. make sure that source code on Azure Portal is updated to the latest one (it may take less than 10 minutes)
 
 ### update environment variables on function app
