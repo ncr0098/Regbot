@@ -131,7 +131,7 @@ class GraphAPIService:
 
                 logging.error(f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}")
                 print((f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}"))
-                raise Exception
+                return 'empty', 'empty'
         
         except Exception as e:
             logging.error(f"file download error: {e}")
@@ -163,7 +163,7 @@ class GraphAPIService:
             
             else:
                 logging.error(f"ファイルのダウンロードに失敗しました。ステータスコード: {response.status_code}")
-                raise Exception
+                return 'empty'
         
         except Exception as e:
             logging.error(f"file download error: {e}")
@@ -215,8 +215,6 @@ class GraphAPIService:
                 endpoint,
                 headers={'Authorization': 'Bearer ' + self.access_token})
             return graph_data
-        else:
-            raise Exception("No access token available")
     
     def get_latest_retrieval_list_csv(self, retrieval_list_directory_path):
         response = self.graph_api_get(retrieval_list_directory_path).json()
