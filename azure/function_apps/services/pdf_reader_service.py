@@ -8,4 +8,4 @@ class PDFReaderService:
             return md_text
         except Exception as e:
             logging.error(f"Error reading PDF: {e}", stack_info=True)
-            raise
+            raise Exception

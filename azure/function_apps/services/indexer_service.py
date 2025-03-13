@@ -174,7 +174,7 @@ class IndexerService:
 
             return result
         except Exception as e:
-            logging.error(f"delete failed: {e.json()}", stack_info=True)
+            logging.error(f"delete failed: {e}", stack_info=True)
             raise
 
 
