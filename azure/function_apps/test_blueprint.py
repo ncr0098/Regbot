@@ -174,7 +174,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         result = dataverse_service.entity.create(data=df_dictionary, mode="individual")
         print("upload success")
 
-        # continue # 管理ファイルの次の行へ
+        return
     
     # dataverseにも管理ファイルに記載されたレコードが存在する場合：
     else:
@@ -199,7 +199,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             if dataverse_last_modified_date != sharepoint_last_modified_date:
                 # 前回手動格納(dataverseの記録)のあとにsharepointのファイルに変更があったということ
                 # 再度indexする必要あり。
-                record_dict["cr261_indexed"] = 0
+                record_dict["cr261_indexed"] = "0"
                 # ファイルが同じ名称で置き換わっている可能性を考慮し、item_idを上書きする
                 record_dict["cr261_sharepoint_item_id"] = pdf_storage_id
                 record_dict["cr261_pdf_last_modified_datetime"] = sharepoint_last_modified_date
@@ -221,7 +221,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             # 管理ファイル世代N+1に追記
             df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
             print("staus is 9. skipping record")
-            # continue # 管理ファイルの次の行へ
+            return
 
         elif status == 1:
             # sharepointのファイルを削除、dfのstatusを1に、indexedを0に、その他db整理
@@ -231,7 +231,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             
             if deletion_graph_data:
                 # dictionary を更新する
-                record_dict["cr261_indexed"] = 0
+                record_dict["cr261_indexed"] = "0"
                 record_dict["cr261_sharepoint_url"] = ""
                 record_dict["cr261_sharepoint_item_id"] = ""
                 record_dict["cr261_sharepoint_directory"] = ""
@@ -262,11 +262,13 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                 result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
                 
                 logging.info("ファイルダウンロード失敗")
+                return
 
             # 更新がない場合ダウンロードをスキップ
             if web_last_modified_date == dataverse_last_modified_date:
                 logging.info("ファイル最終更新日が一致")
                 print("ファイル最終更新日が一致")
+                return
             
             # PDFファイル情報をwebから取得
             file_content = graph_api_service.download_file_from_web(web_url=web_url)
@@ -284,6 +286,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             record_dict["cr261_sharepoint_directory"] = pdf_storage_directory_path
             record_dict["cr261_pdf_last_modified_datetime"] = web_last_modified_date
             record_dict["cr261_manual_flag"] = manual_flag
+            record_dict["cr261_indexed"] = "0"
 
             # dataverseの書き込み
             df_dictionary = pd.DataFrame([record_dict])                
