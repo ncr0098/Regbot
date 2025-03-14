@@ -95,7 +95,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         upload_method = "manual" if row.manual_flag == 1 else "automatic"
         source_name = row.source_name
         status = row.status
-        web_url = row.pdf_url #このURLを叩いて404になるか、のバリデーション
+        web_url = row.pdf_url
         pdf_storage_directory_path = f"/{environment}/{upload_method}/{source_name}"
         
         # Dataverseからレコードを取得
@@ -186,8 +186,20 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                 sharepoint_file_metadata = graph_api_service.graph_api_get(get_file_url).json()
                 
                 # print(sharepoint_file_metadata)
-
+                
                 sharepoint_last_modified_date = sharepoint_file_metadata["lastModifiedDateTime"]
+                # try getting lastModifiedDateTime from web
+                try:
+                    time.sleep(10) # if "EMA" in source_name else time.sleep(5)
+                    web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
+                    if web_last_modified_date is not None:
+                        sharepoint_last_modified_date = web_last_modified_date
+                    else:
+                        print(f"failed to get last_modified_datetime for {web_url}")
+                except Exception as e:
+                    print(f"failed to get last_modified_datetime for {web_url}")
+                    
+
                 last_modified = sharepoint_last_modified_date
                 sharepoint_item_id = sharepoint_file_metadata["id"]
                 sharepoint_web_url = sharepoint_file_metadata["webUrl"]
@@ -201,12 +213,13 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             generated_uuid = uuid.uuid4() # dataverse tableのレコードのキー
             
             # # dataverseの書き込み
+            manual_flag = 0
             record_dict = {
                 "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
                 "cr261_source_name": f"{source_name}",
                 "cr261_sharepoint_url": f"{sharepoint_web_url}",
                 "cr261_pdf_storageid": f"{generated_uuid}", # this is the guid of this dataverse record
-                "cr261_manual_flag": f"{row.manual_flag}",
+                "cr261_manual_flag": f"{manual_flag}",
                 "cr261_pdf_url": f"{row.pdf_url}",
                 "cr261_pdf_last_modified_datetime": f"{last_modified}", # sharepointに格納された時間
                 "cr261_status": f"{status}",
@@ -227,178 +240,177 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         
         # dataverseにも管理ファイルに記載されたレコードが存在する場合：
         else:
-
-            record_dict = records[0] # pdf_urlはuniqueなため1件目を取得する
+            pass
+            # record_dict = records[0] # pdf_urlはuniqueなため1件目を取得する
             
-            # print(record_dict)
-            # status = row.status
-            # source_name = row.source_name
+            # # print(record_dict)
+            # # status = row.status
+            # # source_name = row.source_name
             
-            # check manual files
-            if "manual" in upload_method:
-                # マニュアル格納されたファイルのindex要否チェック
+            # # check manual files
+            # if "manual" in upload_method:
+            #     # マニュアル格納されたファイルのindex要否チェック
                 
-                # dataverseとsharepoint file metadataのmodified dateを比較
-                dataverse_last_modified_date = record_dict["cr261_pdf_last_modified_datetime"]
-                pdf_file_name = record_dict["cr261_sharepoint_file_name"]
+            #     # dataverseとsharepoint file metadataのmodified dateを比較
+            #     dataverse_last_modified_date = record_dict["cr261_pdf_last_modified_datetime"]
+            #     pdf_file_name = record_dict["cr261_sharepoint_file_name"]
                 
-                # ファイルが同じ名称で置き換わっている可能性を考慮し、item_idでなくファイル名で取得
-                get_file_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:{pdf_storage_directory_path}/{pdf_file_name}"
-                sharepoint_file_metadata = graph_api_service.graph_api_get(get_file_url).json()
+            #     # ファイルが同じ名称で置き換わっている可能性を考慮し、item_idでなくファイル名で取得
+            #     get_file_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:{pdf_storage_directory_path}/{pdf_file_name}"
+            #     sharepoint_file_metadata = graph_api_service.graph_api_get(get_file_url).json()
                 
-                sharepoint_last_modified_date = sharepoint_file_metadata["lastModifiedDateTime"]
-                pdf_storage_id = sharepoint_file_metadata["id"]
+            #     sharepoint_last_modified_date = sharepoint_file_metadata["lastModifiedDateTime"]
+            #     pdf_storage_id = sharepoint_file_metadata["id"]
 
-                if dataverse_last_modified_date != sharepoint_last_modified_date:
-                    # 前回手動格納(dataverseの記録)のあとにsharepointのファイルに変更があったということ
-                    # 再度indexする必要あり。
-                    record_dict["cr261_indexed"] = 0
-                    # ファイルが同じ名称で置き換わっている可能性を考慮し、item_idを上書きする
-                    record_dict["cr261_sharepoint_item_id"] = pdf_storage_id
-                    record_dict["cr261_pdf_last_modified_datetime"] = sharepoint_last_modified_date
+            #     if dataverse_last_modified_date != sharepoint_last_modified_date:
+            #         # 前回手動格納(dataverseの記録)のあとにsharepointのファイルに変更があったということ
+            #         # 再度indexする必要あり。
+            #         record_dict["cr261_indexed"] = 0
+            #         # ファイルが同じ名称で置き換わっている可能性を考慮し、item_idを上書きする
+            #         record_dict["cr261_sharepoint_item_id"] = pdf_storage_id
+            #         record_dict["cr261_pdf_last_modified_datetime"] = sharepoint_last_modified_date
 
-                    # dataverseの書き込み
-                    df_dictionary = pd.DataFrame([record_dict])                
-                    result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+            #         # dataverseの書き込み
+            #         df_dictionary = pd.DataFrame([record_dict])                
+            #         result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
 
-                    # sharepointに変更があったが、statusが1の場合は後続の分岐処理で削除処理をおこなう。それ以外は次の行に進む。
-                    if status != 1:
-                        continue
+            #         # sharepointに変更があったが、statusが1の場合は後続の分岐処理で削除処理をおこなう。それ以外は次の行に進む。
+            #         if status != 1:
+            #             continue
 
-            # status値による分岐処理：
-            if status == 9:
-                # ユーザーが確認する必要あり
-                # 管理ファイル世代N+1に追記
-                df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
-                print("staus is 9. skipping record")
-                continue # 管理ファイルの次の行へ
+            # # status値による分岐処理：
+            # if status == 9:
+            #     # ユーザーが確認する必要あり
+            #     # 管理ファイル世代N+1に追記
+            #     df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
+            #     print("staus is 9. skipping record")
+            #     continue # 管理ファイルの次の行へ
 
-            elif status == 1:
-                # sharepointのファイルを削除、dfのstatusを1に、indexedを0に、その他db整理
-                item_id = record_dict["cr261_sharepoint_item_id"]
-                delete_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{item_id}"
-                deletion_graph_data = graph_api_service.delete_file_from_sharepoint(delete_url)
+            # elif status == 1:
+            #     # sharepointのファイルを削除、dfのstatusを1に、indexedを0に、その他db整理
+            #     item_id = record_dict["cr261_sharepoint_item_id"]
+            #     delete_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{item_id}"
+            #     deletion_graph_data = graph_api_service.delete_file_from_sharepoint(delete_url)
                 
-                if deletion_graph_data:
-                    # dictionary を更新する
-                    record_dict["cr261_indexed"] = 0
-                    record_dict["cr261_sharepoint_url"] = ""
-                    record_dict["cr261_sharepoint_item_id"] = ""
-                    record_dict["cr261_sharepoint_directory"] = ""
+            #     if deletion_graph_data:
+            #         # dictionary を更新する
+            #         record_dict["cr261_indexed"] = 0
+            #         record_dict["cr261_sharepoint_url"] = ""
+            #         record_dict["cr261_sharepoint_item_id"] = ""
+            #         record_dict["cr261_sharepoint_directory"] = ""
 
-                    # dataverseの書き込み
-                    df_dictionary = pd.DataFrame([record_dict])                
-                    result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+            #         # dataverseの書き込み
+            #         df_dictionary = pd.DataFrame([record_dict])                
+            #         result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
 
-                    # 管理ファイル世代N+1には記入しない　（行がなくなる）
+            #         # 管理ファイル世代N+1には記入しない　（行がなくなる）
                     
-                    logging.info("ファイル削除成功")
+            #         logging.info("ファイル削除成功")
                 
-            elif status == 0:
+            # elif status == 0:
                 
-                # # print ip address
-                # response = requests.get('https://api.ipify.org?format=json') 
-                # response.raise_for_status()  # Raise an exception for HTTP errors
-                # ip_data = response.json()
-                # print("ip address: ", ip_data['ip'])
+            #     # # print ip address
+            #     # response = requests.get('https://api.ipify.org?format=json') 
+            #     # response.raise_for_status()  # Raise an exception for HTTP errors
+            #     # ip_data = response.json()
+            #     # print("ip address: ", ip_data['ip'])
                 
-                # ファイルの再ダウンロード要否の確認が必要
-                dataverse_last_modified_date = record_dict["cr261_pdf_last_modified_datetime"]
+            #     # ファイルの再ダウンロード要否の確認が必要
+            #     dataverse_last_modified_date = record_dict["cr261_pdf_last_modified_datetime"]
 
-                # PDFファイル情報をwebから取得
-                time.sleep(30) if "EMA" in source_name else time.sleep(2)
-                web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
+            #     # PDFファイル情報をwebから取得
+            #     time.sleep(30) if "EMA" in source_name else time.sleep(2)
+            #     web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
 
-                if web_last_modified_date is None and pdf_file_name is None:
-                    status = 9
-                    record_dict= {
-                        # "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
-                        "cr261_source_name": f"{source_name}",
-                        "cr261_sharepoint_url": f"",
-                        # "cr261_pdf_storageid": f"", # this is the guid of this dataverse record
-                        "cr261_manual_flag": f"{row.manual_flag}",
-                        "cr261_pdf_url": f"{row.pdf_url}",
-                        # "cr261_pdf_last_modified_datetime": f"{last_modified}", # sharepointに格納された時間
-                        "cr261_status": f"{status}",
-                        # "cr261_sharepoint_item_id": f"{sharepoint_item_id}", #sharepointに格納されたid
-                        "cr261_sharepoint_file_name": f"{pdf_file_name}",
-                        "cr261_timestamp": f"{time_first_written_to_dataverse}",
-                        "cr261_indexed": "0"
-                    }
-                    df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
-                    print("upload failed")
-                    continue # 管理ファイルの次の行へ
+            #     if web_last_modified_date is None and pdf_file_name is None:
+            #         status = 9
+            #         record_dict= {
+            #             # "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
+            #             "cr261_source_name": f"{source_name}",
+            #             "cr261_sharepoint_url": f"",
+            #             # "cr261_pdf_storageid": f"", # this is the guid of this dataverse record
+            #             "cr261_manual_flag": f"{row.manual_flag}",
+            #             "cr261_pdf_url": f"{row.pdf_url}",
+            #             # "cr261_pdf_last_modified_datetime": f"{last_modified}", # sharepointに格納された時間
+            #             "cr261_status": f"{status}",
+            #             # "cr261_sharepoint_item_id": f"{sharepoint_item_id}", #sharepointに格納されたid
+            #             "cr261_sharepoint_file_name": f"{pdf_file_name}",
+            #             "cr261_timestamp": f"{time_first_written_to_dataverse}",
+            #             "cr261_indexed": "0"
+            #         }
+            #         df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
+            #         print("upload failed")
+            #         continue # 管理ファイルの次の行へ
 
-                # ファイルがwebに存在しない場合や、ダウンロードに不備（サーバー側のスクレイピング制限等）があった場合statusを9に変更
-                if web_last_modified_date is None and pdf_file_name is None:    
-                    record_dict["cr261_status"] = 9
+            #     # ファイルがwebに存在しない場合や、ダウンロードに不備（サーバー側のスクレイピング制限等）があった場合statusを9に変更
+            #     if web_last_modified_date is None and pdf_file_name is None:    
+            #         record_dict["cr261_status"] = 9
                     
-                    # dataverseの書き込み
-                    df_dictionary = pd.DataFrame([record_dict])
-                    result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+            #         # dataverseの書き込み
+            #         df_dictionary = pd.DataFrame([record_dict])
+            #         result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
                     
-                    # 管理ファイル世代N+1に追記
-                    df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
+            #         # 管理ファイル世代N+1に追記
+            #         df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
                     
-                    logging.info("ファイルダウンロード失敗")
-                    continue #管理ファイルの次の行へ
+            #         logging.info("ファイルダウンロード失敗")
+            #         continue #管理ファイルの次の行へ
 
-                # 更新がない場合ダウンロードをスキップ
-                if web_last_modified_date == dataverse_last_modified_date:
-                    logging.info("ファイル最終更新日が一致")
-                    print("ファイル最終更新日が一致")
-                    # 管理ファイル世代N+1に追記
-                    df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
-                    continue # 管理ファイルの次の行へ
+            #     # 更新がない場合ダウンロードをスキップ
+            #     if web_last_modified_date == dataverse_last_modified_date:
+            #         logging.info("ファイル最終更新日が一致")
+            #         print("ファイル最終更新日が一致")
+            #         # 管理ファイル世代N+1に追記
+            #         df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
+            #         continue # 管理ファイルの次の行へ
                 
-                # PDFファイル情報をwebから取得
-                time.sleep(30) if "EMA" in source_name else time.sleep(2)
-                file_content = graph_api_service.download_file_from_web(web_url=web_url)
-                if file_content is None:
-                    status = 9
-                    record_dict= {
-                        # "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
-                        "cr261_source_name": f"{source_name}",
-                        "cr261_sharepoint_url": f"",
-                        # "cr261_pdf_storageid": f"", # this is the guid of this dataverse record
-                        "cr261_manual_flag": f"{row.manual_flag}",
-                        "cr261_pdf_url": f"{row.pdf_url}",
-                        # "cr261_pdf_last_modified_datetime": f"{last_modified}", # sharepointに格納された時間
-                        "cr261_status": f"{status}",
-                        # "cr261_sharepoint_item_id": f"{sharepoint_item_id}", #sharepointに格納されたid
-                        "cr261_sharepoint_file_name": f"{pdf_file_name}",
-                        "cr261_timestamp": f"{time_first_written_to_dataverse}",
-                        "cr261_indexed": "0"
-                    }
-                    df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
-                    print("upload failed")
-                    continue # 管理ファイルの次の行へ
+            #     # PDFファイル情報をwebから取得
+            #     time.sleep(30) if "EMA" in source_name else time.sleep(2)
+            #     file_content = graph_api_service.download_file_from_web(web_url=web_url)
+            #     if file_content is None:
+            #         status = 9
+            #         record_dict= {
+            #             # "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
+            #             "cr261_source_name": f"{source_name}",
+            #             "cr261_sharepoint_url": f"",
+            #             # "cr261_pdf_storageid": f"", # this is the guid of this dataverse record
+            #             "cr261_manual_flag": f"{row.manual_flag}",
+            #             "cr261_pdf_url": f"{row.pdf_url}",
+            #             # "cr261_pdf_last_modified_datetime": f"{last_modified}", # sharepointに格納された時間
+            #             "cr261_status": f"{status}",
+            #             # "cr261_sharepoint_item_id": f"{sharepoint_item_id}", #sharepointに格納されたid
+            #             "cr261_sharepoint_file_name": f"{pdf_file_name}",
+            #             "cr261_timestamp": f"{time_first_written_to_dataverse}",
+            #             "cr261_indexed": "0"
+            #         }
+            #         df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
+            #         print("upload failed")
+            #         continue # 管理ファイルの次の行へ
 
-                # PDFファイルをsharepointへ格納
-                pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
-                # 上書きアップロードのエンドポイント
-                sharepoint_upload_endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{parent_id}:/{pdf_joined_name}:/content"
-                file_upload_graph_data = graph_api_service.upload_file_to_sharepoint(file_content, pdf_file_name, sharepoint_upload_endpoint)
+            #     # PDFファイルをsharepointへ格納
+            #     pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
+            #     # 上書きアップロードのエンドポイント
+            #     sharepoint_upload_endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{parent_id}:/{pdf_joined_name}:/content"
+            #     file_upload_graph_data = graph_api_service.upload_file_to_sharepoint(file_content, pdf_file_name, sharepoint_upload_endpoint)
 
-                # dataverseの更新
-                record_dict["cr261_sharepoint_url"] = file_upload_graph_data["webUrl"]
-                record_dict["cr261_sharepoint_item_id"] = file_upload_graph_data["id"]
-                record_dict["cr261_sharepoint_file_name"] = pdf_file_name
-                record_dict["cr261_sharepoint_directory"] = pdf_storage_directory_path
-                record_dict["cr261_pdf_last_modified_datetime"] = web_last_modified_date
-                record_dict["cr261_manual_flag"] = row.manual_flag
-                record_dict["cr261_indexed"] = 0 # 追加する必要あり　String
+            #     # dataverseの更新
+            #     record_dict["cr261_sharepoint_url"] = file_upload_graph_data["webUrl"]
+            #     record_dict["cr261_sharepoint_item_id"] = file_upload_graph_data["id"]
+            #     record_dict["cr261_sharepoint_file_name"] = pdf_file_name
+            #     record_dict["cr261_sharepoint_directory"] = pdf_storage_directory_path
+            #     record_dict["cr261_pdf_last_modified_datetime"] = web_last_modified_date
+            #     record_dict["cr261_manual_flag"] = row.manual_flag
 
-                # dataverseの書き込み
-                df_dictionary = pd.DataFrame([record_dict])                
-                result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+            #     # dataverseの書き込み
+            #     df_dictionary = pd.DataFrame([record_dict])                
+            #     result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
 
-                # 管理ファイル世代N+1に追記
-                df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
-                # print("upload success")
+            #     # 管理ファイル世代N+1に追記
+            #     df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
+            #     # print("upload success")
 
-            else:
-                logging.error(f"staus error for {record_dict["cr261_pdf_url"]}")
+            # else:
+            #     logging.error(f"staus error for {record_dict["cr261_pdf_url"]}")
         
         ### 行ごとの処理完了 ###
 

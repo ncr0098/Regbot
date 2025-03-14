@@ -167,7 +167,7 @@ class GraphAPIService:
         
         except Exception as e:
             logging.error(f"file download error: {e}")
-            return None, None, None
+            return None
 
     def upload_file_to_sharepoint(self, pdf_file, pdf_file_name, sharepoint_upload_endpoint):
 
