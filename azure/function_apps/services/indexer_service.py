@@ -174,7 +174,7 @@ class IndexerService:
 
             return result
         except Exception as e:
-            logging.error(f"delete failed: {e.json()}", stack_info=True)
+            logging.error(f"delete failed: {e}", stack_info=True)
             raise
 
 
@@ -192,3 +192,8 @@ class IndexerService:
         except Exception as e:
             logging.error(f"delete failed: {e.json()}", stack_info=True)
             raise
+
+    def upsert(self, upsert_records):
+        credential = AzureKeyCredential(self.indexer_api_key)
+        search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)
+        return search_client.merge_or_upload_documents(upsert_records)
