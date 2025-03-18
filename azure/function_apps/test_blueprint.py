@@ -176,7 +176,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                     logging.info('error occured on fetching valid metadata')
                     status_to_be_inserted = 9
                     insert_to_be_registered = '1'
-                    last_modified = ''
+                    last_modified =  datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
                     sharepoint_item_id = ''
                     sharepoint_web_url = sharepoint_web_url
                     pdf_file_name = sharepoint_web_url.split('/')[-1]
@@ -217,7 +217,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             result = dataverse_service.entity.create(data=df_dictionary, mode="individual")
             logging.info("upload success")
 
-            return func.HttpResponse("rpocess when no data exists on dataaverse")
+            return func.HttpResponse("process when no data exists on dataverse")
         
         # dataverseにも管理ファイルに記載されたレコードが存在する場合：
         else:
@@ -291,11 +291,8 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                 if deletion_graph_data:
                     # dictionary を更新する
                     record_dict["cr261_indexed"] = "0"
-                    record_dict["cr261_sharepoint_url"] = ""
-                    record_dict["cr261_sharepoint_item_id"] = ""
-                    record_dict["cr261_sharepoint_directory"] = ""
                     record_dict["cr261_status"] = 1
-
+                    record_dict["cr261_pdf_last_modified_datetime"] = datetime(1970, 1, 1).strftime('%Y-%m-%dT%H:%M:%SZ')
                     # dataverseの書き込み
                     df_dictionary = pd.DataFrame([record_dict])                
                     result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
