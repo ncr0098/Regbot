@@ -66,7 +66,7 @@ def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse
 
     # Dataverseからレコード取得
     # 論理削除されてないものすべて取得
-    dataverse_records = dataverse_service.entity.read(select=["*"], filter="startswith(cr261_indexed,'0') and cr261_status ne 1", order_by="cr261_pdf_last_modified_datetime")
+    dataverse_records = dataverse_service.entity.read(select=["*"], filter="cr261_status ne 1", order_by="cr261_pdf_last_modified_datetime")
     
     if len(dataverse_records) > 0:
         df_output = pd.DataFrame(dataverse_records) # 管理ファイルN+1世代の準備
