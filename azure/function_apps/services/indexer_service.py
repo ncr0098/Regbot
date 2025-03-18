@@ -193,6 +193,21 @@ class IndexerService:
             logging.error(f"delete failed: {e.json()}", stack_info=True)
             raise
 
+    def search_filter(self, select="", filter='', include_total_count=False):
+        try:
+            credential = AzureKeyCredential(self.indexer_api_key)
+            search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)
+            # Run an empty query (returns selected fields, all documents)
+            results =  search_client.search(query_type='simple',
+                select=select ,
+                filter=filter, 
+                include_total_count=include_total_count)
+            
+            return results
+        except Exception as e:
+            logging.error(f"delete failed: {e.json()}", stack_info=True)
+            raise
+
     def upsert(self, upsert_records):
         credential = AzureKeyCredential(self.indexer_api_key)
         search_client = SearchClient(endpoint=self.indexer_endpoint, index_name=self.index_name, credential=credential)

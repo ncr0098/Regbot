@@ -95,11 +95,27 @@ def importFileToAISearch(req: func.HttpRequest) -> func.HttpResponse:
         # APIエンドポイント
         file_url = f' https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/root:{directory_path}/{object_file_name}:/content'
 
+        logging.info("---record---")
+        logging.info(f"URL: {item_dbmodel.cr261_sharepoint_url}")
+        logging.info(f"directory_path: {item_dbmodel.cr261_sharepoint_directory}")
+        logging.info(f"filename: {item_dbmodel.cr261_sharepoint_file_name}")
+        logging.info("-----------")
+
         
         if item_dbmodel.cr261_status == 1:
-            logging.info("start delete record from AI Search")
-            indexer_service.delete_record({"id": item_dbmodel.cr261_sharepoint_item_id})
-            logging.info("done delete record from AI Search")
+            target = indexer_service.search_filter(
+                select=["id", "URL"], 
+                filter=f"URL eq '{item_dbmodel.cr261_sharepoint_url}'"
+            )
+            target_l = list(target)
+            if len(target_l) > 0: # この場合、SharepointURLは一意である前提で処理
+                target_id = target_l[0]["id"]
+                logging.info(f"start delete record from AI Search; id= {target_id}")
+                indexer_service.delete_record([{"id": target_id}])
+                logging.info(f"done delete record from AI Search; id= {target_id}")
+            else:
+                logging.info("no record to delete")
+            
         else:
             # 本日日付時刻を取得
             current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
