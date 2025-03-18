@@ -98,41 +98,9 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         
         # source_name validation check
         pattern = re.compile(r'[\uFF00-\uFFEF\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]')
-        source_name_invalid =  source_name is None or bool(pattern.search(source_name.strip())) or source_name.strip() == ''
+        source_name_invalid =  source_name is None or ' ' in source_name or bool(pattern.search(source_name.strip()))
         status_invalid = not((status == 0) or (status == 1) or (status == 9))
         manual_flag_invalid = manual_flag == 999
-
-        if source_name_invalid or status_invalid or manual_flag_invalid:
-            
-            pdf_storage_directory_path = ""            
-            sharepoint_web_url = ""
-            generated_uuid = uuid.uuid4()
-            last_modified = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
-            status_to_be_inserted = 9 # write 9 in dataverse
-            sharepoint_item_id = ""
-            pdf_file_name = ""
-            time_first_written_to_dataverse = last_modified
-            insert_to_be_registered = 1
-
-            record_dict = {
-                "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
-                "cr261_source_name": f"{source_name}",
-                "cr261_sharepoint_url": f"{sharepoint_web_url}",
-                "cr261_pdf_storageid": f"{generated_uuid}", # this is the guid of this dataverse record
-                "cr261_manual_flag": f"{manual_flag}",
-                "cr261_pdf_url": f"{pdf_url}",
-                "cr261_pdf_last_modified_datetime": f"{last_modified}", # sharepointに格納された時間
-                "cr261_status": f"{status_to_be_inserted}",
-                "cr261_sharepoint_item_id": f"{sharepoint_item_id}", #sharepointに格納されたid
-                "cr261_sharepoint_file_name": f"{pdf_file_name}",
-                "cr261_timestamp": f"{time_first_written_to_dataverse}",
-                "cr261_indexed": f"{insert_to_be_registered}"
-            }
-
-            df_dictionary = pd.DataFrame([record_dict])
-            result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
-            
-            return func.HttpResponse("validation error with source_name or status or manual_flag")
 
         time.sleep(2)
         logging.info(f"\nworking on {pdf_url}")
@@ -158,6 +126,38 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         # →　lenが0となる。新規のレコードをdataverseに追加する必要あり
         if len(records) == 0: # statusがなんであろうとsharepointに格納し、dataverseに書きこむ
             logging.info("no entry in dataverse...")
+
+            if source_name_invalid or status_invalid or manual_flag_invalid:
+            
+                pdf_storage_directory_path = ""            
+                sharepoint_web_url = ""
+                generated_uuid = uuid.uuid4()
+                last_modified = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+                status_to_be_inserted = 9 # write 9 in dataverse
+                sharepoint_item_id = ""
+                pdf_file_name = ""
+                time_first_written_to_dataverse = last_modified
+                insert_to_be_registered = 1
+
+                record_dict = {
+                    "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
+                    "cr261_source_name": f"{source_name}",
+                    "cr261_sharepoint_url": f"{sharepoint_web_url}",
+                    "cr261_pdf_storageid": f"{generated_uuid}", # this is the guid of this dataverse record
+                    "cr261_manual_flag": f"{manual_flag}",
+                    "cr261_pdf_url": f"{pdf_url}",
+                    "cr261_pdf_last_modified_datetime": f"{last_modified}", # sharepointに格納された時間
+                    "cr261_status": f"{status_to_be_inserted}",
+                    "cr261_sharepoint_item_id": f"{sharepoint_item_id}", #sharepointに格納されたid
+                    "cr261_sharepoint_file_name": f"{pdf_file_name}",
+                    "cr261_timestamp": f"{time_first_written_to_dataverse}",
+                    "cr261_indexed": f"{insert_to_be_registered}"
+                }
+
+                df_dictionary = pd.DataFrame([record_dict])
+                result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                
+                return func.HttpResponse("validation error with source_name or status or manual_flag")
             
             # dataverseに書き込む。ファイル格納方法により変数の取得方法が変わる。
             if "automatic" in upload_method:
@@ -262,6 +262,14 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             logging.info('records not empty')
             record_dict = records[0] # pdf_urlはuniqueなため1件目を取得する
             
+            if source_name_invalid or status_invalid or manual_flag_invalid:
+
+                record_dict["cr261_status"] = 9
+
+                df_dictionary = pd.DataFrame([record_dict])
+                result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                
+                return func.HttpResponse("validation error with source_name or status or manual_flag")
             
             if "manual" in upload_method:
                 logging.info('its manual')
@@ -367,7 +375,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                     
 
                 # 更新がない場合ダウンロードをスキップ
-                if web_last_modified_date == dataverse_last_modified_date:
+                if web_last_modified_date == dataverse_last_modified_date and record_dict["cr261_status"] == 0:
                     logging.info("ファイル最終更新日が一致")
                     logging.info("ファイル最終更新日が一致")
                     return func.HttpResponse("download is skipped because file modified date is the same as header")
