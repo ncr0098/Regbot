@@ -120,9 +120,11 @@ class GraphAPIService:
                 
                 return last_modified_converted, file_name
             
-            elif response.status_code == 302:
-                logging.error(f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}")
-                return "status_302_continue", "status_302_continue"
+            elif response.status_code == 404:
+                logging.error(f"ファイルが削除されている恐れがあります。ステータスコード: {response.status_code}")
+                print((f"ファイルが削除されている恐れがあります。ステータスコード: {response.status_code}"))
+                return '404', '404'
+
             else:
                 # failed_header = response.headers.json()
                 # print(failed_header)

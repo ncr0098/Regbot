@@ -202,7 +202,6 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
             
             else: # when upload_method is manual  
                 logging.info('its manual')
-                # TODO: ファイル名が異なりエラーになっても処理を止めないようにする
                 # IMPORTANT: "/dev/manual/PMDA/000206143.pdf" の形式で管理ファイルのsharepoint_urlに書いてもらう必要あり
                 joined_directory_and_filename = sharepoint_web_url 
                 # ファイルが同じ名称で置き換わっている可能性を考慮し、item_idでなくファイル名で取得
@@ -356,12 +355,19 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                 # PDFファイル情報をwebから取得
                 web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
 
-                if 'empty' in web_last_modified_date:
+                
+                if '404' in web_last_modified_date :
                     logging.info('404')
                     status_to_be_inserted = 9
                     insert_to_be_registered = '1'
-                if "status_302_continue" in web_last_modified_date:
-                    return func.HttpResponse("download is skipped because organizaton is in black list")
+                elif 'empty' in web_last_modified_date and 'EMA' in source_name and record_dict["cr261_status"] == 0:
+                    # EMAはこけやすいので、前回の取り込みが成功していれば見逃す
+                    logging.info('EMA get header failed, but previous get was successful')
+                    status_to_be_inserted = status
+                    insert_to_be_registered = '1'
+                elif 'empty' in web_last_modified_date:
+                    status_to_be_inserted = 9
+                    insert_to_be_registered = '1'
                 else:
                     logging.info('not 404')
                     status_to_be_inserted = status
@@ -386,6 +392,25 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                 
                 # PDFファイル情報をwebから取得
                 file_content = graph_api_service.download_file_from_web(web_url=web_url)
+                if file_content == 'empty':
+                    # file download に失敗したので、シェアポイント格納は行わず、データバースに失敗したことを書き込み、処理終了
+                    logging.info('empty')
+                    
+                    status_to_be_inserted = 9
+                    insert_to_be_registered = '1'
+
+                    record_dict["cr261_indexed"] = insert_to_be_registered
+                    record_dict["cr261_status"] = status_to_be_inserted
+                    
+                    df_dictionary = pd.DataFrame([record_dict])                
+                    result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                    
+                    logging.error(f"could not download file for {record_dict["cr261_pdf_url"]}")
+                    return func.HttpResponse("file download failed for a file that exists in dataverse which needs updating.")
+                else:
+                    logging.info('not empty')
+                    status_to_be_inserted = status
+                    insert_to_be_registered = '0'
 
                 # PDFファイルをsharepointへ格納
                 pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
