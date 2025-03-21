@@ -120,17 +120,14 @@ class GraphAPIService:
                 
                 return last_modified_converted, file_name
             
-            # elif response.status_code == 429:
-            #     new_url = response.headers["Location"]
-            #     print(new_url)
-            #     response = requests.get(new_url)
-                # return response.content
+            elif response.status_code == 302:
+                logging.error(f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}")
+                return "status_302_continue", "status_302_continue"
             else:
                 # failed_header = response.headers.json()
                 # print(failed_header)
 
                 logging.error(f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}")
-                print((f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}"))
                 return 'empty', 'empty'
         
         except Exception as e:

@@ -253,6 +253,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
 
             df_dictionary = pd.DataFrame([record_dict])
             result = dataverse_service.entity.create(data=df_dictionary, mode="individual")
+            logging.info(result)
             logging.info("upload success")
 
             return func.HttpResponse("process when no data exists on dataverse")
@@ -268,6 +269,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
 
                 df_dictionary = pd.DataFrame([record_dict])
                 result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                logging.info(result)
                 
                 return func.HttpResponse("validation error with source_name or status or manual_flag")
             
@@ -358,6 +360,8 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                     logging.info('404')
                     status_to_be_inserted = 9
                     insert_to_be_registered = '1'
+                if "status_302_continue" in web_last_modified_date:
+                    return func.HttpResponse("download is skipped because organizaton is in black list")
                 else:
                     logging.info('not 404')
                     status_to_be_inserted = status
