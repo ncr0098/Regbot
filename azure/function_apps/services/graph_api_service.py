@@ -123,19 +123,18 @@ class GraphAPIService:
             elif response.status_code == 404:
                 logging.error(f"ファイルが削除されている恐れがあります。ステータスコード: {response.status_code}")
                 print((f"ファイルが削除されている恐れがあります。ステータスコード: {response.status_code}"))
-                return '404', '404'
+                return datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'), '404'
 
             else:
                 # failed_header = response.headers.json()
                 # print(failed_header)
 
                 logging.error(f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}")
-                print((f"ファイルのヘッダー情報取得に失敗しました。ステータスコード: {response.status_code}"))
-                return 'empty', 'empty'
+                return datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'), 'empty'
         
         except Exception as e:
             logging.error(f"file download error: {e}")
-            return None, None
+            return datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'), 'empty'
 
     def download_file_from_web(self, web_url):
         

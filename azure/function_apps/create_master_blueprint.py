@@ -84,11 +84,11 @@ def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse
         print(df_sorted)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
         # Create the filename with the current time
-        retrieval_list_file_name = f"retrieve_list_{current_time}.xlsx"
+        retrieval_list_file_name = f"retrieve_list_{current_time}.csv"
         # Convert DataFrame to CSV in memory
         io_buffer = BytesIO()
         # df_sorted.to_excel(io_buffer, index=False)
-        df_sorted.to_excel(io_buffer, index=False, engine='xlsxwriter')  # Use BytesIO here
+        df_sorted.to_csv(io_buffer, index=False)  # Use BytesIO here
 
         io_buffer.seek(0)
 
