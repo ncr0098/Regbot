@@ -1,0 +1,213 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_extractFileInfo_name": {
+            "defaultValue": "extractFileInfo",
+            "type": "String"
+        },
+        "connections_sharepointonline_1_externalid": {
+            "defaultValue": "/subscriptions/c4fe7280-282e-495e-b14a-c4e020532cd7/resourceGroups/rg-10748-dev-genai/providers/Microsoft.Web/connections/sharepointonline-1",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_extractFileInfo_name')]",
+            "location": "eastus2",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "フォルダー内でファイルが作成または変更されたとき_(非推奨)": {
+                            "recurrence": {
+                                "frequency": "Minute",
+                                "interval": 3
+                            },
+                            "evaluatedRecurrence": {
+                                "frequency": "Minute",
+                                "interval": 3
+                            },
+                            "metadata": {
+                                "%252fShared%2bDocuments%252fdev%252fmanual": "/Shared Documents/dev/manual"
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://mytakeda.sharepoint.com/sites/RegBot'))}/triggers/onupdatedfile",
+                                "queries": {
+                                    "folderId": "%252fShared%2bDocuments%252fdev%252fmanual",
+                                    "inferContentType": true,
+                                    "includeFileContent": true,
+                                    "queryParametersSingleEncoded": true
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "ファイルの取得_(プロパティのみ)": {
+                            "runAfter": {},
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://mytakeda.sharepoint.com/sites/RegBot'))}/tables/@{encodeURIComponent(encodeURIComponent('bd03ed96-b38d-4843-b0a7-7090b9faa459'))}/getfileitems",
+                                "queries": {
+                                    "folderPath": "/Shared Documents/dev/manual"
+                                }
+                            }
+                        },
+                        "For_each": {
+                            "foreach": "@body('ファイルの取得_(プロパティのみ)')?['value']",
+                            "actions": {
+                                "HTTP": {
+                                    "runAfter": {
+                                        "Set_variable_validUrl": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "https://extractfileinfo.azurewebsites.net/api/importFileToAISearch/?code=9el9MYgrZ7tdS3A7GfUQF2kfXBbSOo2xfkYBpNP8RkmdAzFu9k-Vog==",
+                                        "method": "POST",
+                                        "body": {
+                                            "fileUrl": "@variables('validUrl')",
+                                            "docDir": "manual"
+                                        }
+                                    },
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
+                                    }
+                                },
+                                "Set_variable_validFullPath": {
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "validFullPath",
+                                        "value": "@replace(items('For_each')?['{FullPath}'],'Shared Documents','')"
+                                    }
+                                },
+                                "Set_variable_validUrl": {
+                                    "runAfter": {
+                                        "Set_variable_validFullPath": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "validUrl",
+                                        "value": "@concat(variables('DRIVE_ROOT_URL'),variables('validFullPath'),':/content')"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Initialize_variable_validUrl": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Foreach"
+                        },
+                        "Initialize_variable_1": {
+                            "runAfter": {
+                                "ファイルの取得_(プロパティのみ)": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "url",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_DRIVE_ROOT_URL": {
+                            "runAfter": {
+                                "Initialize_variable_1": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "DRIVE_ROOT_URL",
+                                        "type": "string",
+                                        "value": "https://graph.microsoft.com/v1.0/sites/0e4def03-c3e0-48d3-9792-37d278ad883d/drives/b!A-9NDuDD00iXkjfSeK2IPd-LN6UvAONCuEr7goNRPEWW7QO9jbNDSLCncJC5-qRZ/root:"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_validFullPath": {
+                            "runAfter": {
+                                "Initialize_variable_DRIVE_ROOT_URL": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "validFullPath",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_validUrl": {
+                            "runAfter": {
+                                "Initialize_variable_validFullPath": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "validUrl",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "sharepointonline": {
+                                "id": "/subscriptions/c4fe7280-282e-495e-b14a-c4e020532cd7/providers/Microsoft.Web/locations/eastus2/managedApis/sharepointonline",
+                                "connectionId": "[parameters('connections_sharepointonline_1_externalid')]",
+                                "connectionName": "sharepointonline-1"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

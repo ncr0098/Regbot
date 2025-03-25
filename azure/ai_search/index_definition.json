@@ -1,239 +1,252 @@
 {
-    "@odata.etag": "\"0x8DD4CD3B73B1C2D\"",
-    "name": "external_file_info",
-    "fields": [
+  "name": "external_file_info_sample",
+  "fields": [
+    {
+      "name": "id",
+      "type": "Edm.String",
+      "searchable": false,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": true,
+      "synonymMaps": []
+    },
+    {
+      "name": "URL",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    },
+    {
+      "name": "organization",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    },
+    {
+      "name": "sentence",
+      "type": "Collection(Edm.String)",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    },
+    {
+      "name": "refined_question",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    },
+    {
+      "name": "embedded_sentence",
+      "type": "Collection(Edm.Single)",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": false,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "dimensions": 1536,
+      "vectorSearchProfile": "vectorConfig",
+      "synonymMaps": []
+    },
+    {
+      "name": "embedded_refined_question",
+      "type": "Collection(Edm.Single)",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": false,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "dimensions": 1536,
+      "vectorSearchProfile": "vectorConfig",
+      "synonymMaps": []
+    },
+    {
+      "name": "summary",
+      "type": "Edm.String",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "keywords",
+      "type": "Collection(Edm.String)",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": true,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    },
+    {
+      "name": "title",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    },
+    {
+      "name": "filename",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    },
+    {
+      "name": "registered_date",
+      "type": "Edm.String",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "tokens_of_sentence",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "analyzer": "standard.lucene",
+      "synonymMaps": []
+    }
+  ],
+  "scoringProfiles": [],
+  "suggesters": [],
+  "analyzers": [],
+  "normalizers": [],
+  "tokenizers": [],
+  "tokenFilters": [],
+  "charFilters": [],
+  "similarity": {
+    "@odata.type": "#Microsoft.Azure.Search.BM25Similarity"
+  },
+  "semantic": {
+    "configurations": [
       {
-        "name": "id",
-        "type": "Edm.String",
-        "searchable": false,
-        "filterable": false,
-        "retrievable": true,
-        "stored": true,
-        "sortable": false,
-        "facetable": false,
-        "key": true,
-        "synonymMaps": []
+        "name": "my-semantic-config",
+        "prioritizedFields": {
+          "titleField": {
+            "fieldName": "title"
+          },
+          "prioritizedContentFields": [
+            {
+              "fieldName": "sentence"
+            }
+          ],
+          "prioritizedKeywordsFields": [
+            {
+              "fieldName": "keywords"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "vectorSearch": {
+    "algorithms": [
+      {
+        "name": "myHnsw",
+        "kind": "hnsw",
+        "hnswParameters": {
+          "metric": "cosine",
+          "m": 4,
+          "efConstruction": 400,
+          "efSearch": 500
+        }
       },
       {
-        "name": "URL",
-        "type": "Edm.String",
-        "searchable": true,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": true,
-        "facetable": true,
-        "key": false,
-        "analyzer": "standard.lucene",
-        "synonymMaps": []
-      },
-      {
-        "name": "website",
-        "type": "Edm.String",
-        "searchable": true,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": true,
-        "facetable": true,
-        "key": false,
-        "analyzer": "standard.lucene",
-        "synonymMaps": []
-      },
-      {
-        "name": "sentence",
-        "type": "Edm.String",
-        "searchable": true,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": true,
-        "facetable": true,
-        "key": false,
-        "analyzer": "standard.lucene",
-        "synonymMaps": []
-      },
-      {
-        "name": "elaborated_question",
-        "type": "Edm.String",
-        "searchable": true,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": true,
-        "facetable": true,
-        "key": false,
-        "analyzer": "standard.lucene",
-        "synonymMaps": []
-      },
-      {
-        "name": "embedded_sentence",
-        "type": "Collection(Edm.Single)",
-        "searchable": true,
-        "filterable": false,
-        "retrievable": false,
-        "stored": true,
-        "sortable": false,
-        "facetable": false,
-        "key": false,
-        "dimensions": 1536,
-        "vectorSearchProfile": "vectorConfig",
-        "synonymMaps": []
-      },
-      {
-        "name": "embedded_elaborated_question",
-        "type": "Collection(Edm.Single)",
-        "searchable": true,
-        "filterable": false,
-        "retrievable": false,
-        "stored": true,
-        "sortable": false,
-        "facetable": false,
-        "key": false,
-        "dimensions": 1536,
-        "vectorSearchProfile": "vectorConfig",
-        "synonymMaps": []
-      },
-      {
-        "name": "summary",
-        "type": "Edm.String",
-        "searchable": false,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": true,
-        "facetable": true,
-        "key": false,
-        "synonymMaps": []
-      },
-      {
-        "name": "keywords",
-        "type": "Collection(Edm.String)",
-        "searchable": true,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": false,
-        "facetable": true,
-        "key": false,
-        "analyzer": "standard.lucene",
-        "synonymMaps": []
-      },
-      {
-        "name": "title",
-        "type": "Edm.String",
-        "searchable": true,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": true,
-        "facetable": true,
-        "key": false,
-        "analyzer": "standard.lucene",
-        "synonymMaps": []
-      },
-      {
-        "name": "registered_date",
-        "type": "Edm.String",
-        "searchable": false,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": true,
-        "facetable": true,
-        "key": false,
-        "synonymMaps": []
-      },
-      {
-        "name": "tokens_of_sentence",
-        "type": "Edm.String",
-        "searchable": true,
-        "filterable": true,
-        "retrievable": true,
-        "stored": true,
-        "sortable": true,
-        "facetable": true,
-        "key": false,
-        "analyzer": "standard.lucene",
-        "synonymMaps": []
+        "name": "myExhaustiveKnn",
+        "kind": "exhaustiveKnn",
+        "exhaustiveKnnParameters": {
+          "metric": "cosine"
+        }
       }
     ],
-    "scoringProfiles": [],
-    "suggesters": [],
-    "analyzers": [],
-    "normalizers": [],
-    "tokenizers": [],
-    "tokenFilters": [],
-    "charFilters": [],
-    "similarity": {
-      "@odata.type": "#Microsoft.Azure.Search.BM25Similarity"
-    },
-    "semantic": {
-      "configurations": [
-        {
-          "name": "my-semantic-config",
-          "prioritizedFields": {
-            "titleField": {
-              "fieldName": "title"
-            },
-            "prioritizedContentFields": [
-              {
-                "fieldName": "sentence"
-              }
-            ],
-            "prioritizedKeywordsFields": [
-              {
-                "fieldName": "keywords"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    "vectorSearch": {
-      "algorithms": [
-        {
-          "name": "myHnsw",
-          "kind": "hnsw",
-          "hnswParameters": {
-            "metric": "cosine",
-            "m": 4,
-            "efConstruction": 400,
-            "efSearch": 500
-          }
+    "profiles": [
+      {
+        "name": "vectorConfig",
+        "algorithm": "myHnsw",
+        "compression": "myCompression"
+      },
+      {
+        "name": "myExhaustiveKnnProfile",
+        "algorithm": "myExhaustiveKnn"
+      }
+    ],
+    "vectorizers": [],
+    "compressions": [
+      {
+        "name": "myCompression",
+        "kind": "scalarQuantization",
+        "scalarQuantizationParameters": {
+          "quantizedDataType": "int8"
         },
-        {
-          "name": "myExhaustiveKnn",
-          "kind": "exhaustiveKnn",
-          "exhaustiveKnnParameters": {
-            "metric": "cosine"
-          }
+        "rescoringOptions": {
+          "enableRescoring": true,
+          "defaultOversampling": 10,
+          "rescoreStorageMethod": "preserveOriginals"
         }
-      ],
-      "profiles": [
-        {
-          "name": "vectorConfig",
-          "algorithm": "myHnsw"
-        },
-        {
-          "name": "myExhaustiveKnnProfile",
-          "algorithm": "myExhaustiveKnn"
-        }
-      ],
-      "vectorizers": [],
-      "compressions": [
-        {
-          "name": "myCompression",
-          "kind": "scalarQuantization",
-          "scalarQuantizationParameters": {
-            "quantizedDataType": "int8"
-          },
-          "rescoringOptions": {
-            "enableRescoring": true,
-            "defaultOversampling": 10,
-            "rescoreStorageMethod": "preserveOriginals"
-          }
-        }
-      ]
-    }
+      }
+    ]
   }
+}
