@@ -53,7 +53,7 @@ def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse
     if len(dataverse_records) > 0:
         df_output = pd.DataFrame(dataverse_records) # 管理ファイルN+1世代の準備
 
-        df_selected = df_output[['cr261_source_name', 'cr261_pdf_url', 'cr261_sharepoint_url', 'cr261_status', 'cr261_manual_flag']]
+        df_selected = df_output[['cr261_source_name', 'cr261_pdf_url', 'cr261_sharepoint_file', 'cr261_status', 'cr261_manual_flag']]
         df_selected = df_selected.rename(columns={
             'cr261_source_name': 'source_name',
             'cr261_pdf_url': 'pdf_url',
@@ -80,7 +80,7 @@ def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse
         io_bytes = io_buffer.getvalue()
 
         # PDFファイルをsharepointへ格納
-        retrieval_list_storage_directory_path = f"/{environment}/retrieval_list"
+        retrieval_list_storage_directory_path = f"/{environment}"
         retrieval_list_joined_name = f"{retrieval_list_storage_directory_path}/{retrieval_list_file_name}"
         
         # 上書きアップロードのエンドポイント
