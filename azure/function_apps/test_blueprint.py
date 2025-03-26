@@ -454,7 +454,6 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                     # PDFファイル情報をwebから取得
                     web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
 
-                    
                     if '404' in pdf_file_name :
                         logging.info('404')
                         status_to_be_inserted = 9
@@ -484,7 +483,9 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                         
 
                     # 更新がない場合ダウンロードをスキップ
-                    if web_last_modified_date == dataverse_last_modified_date and record_dict["cr261_status"] == 0:
+                    if web_last_modified_date == dataverse_last_modified_date \
+                            and record_dict["cr261_status"] == 0 \
+                            and record_dict["cr261_sharepoint_file_name"] != "empty":
                         logging.info("ファイル最終更新日が一致")
                         logging.info("ファイル最終更新日が一致")
                         return func.HttpResponse("download is skipped because file modified date is the same as header")
