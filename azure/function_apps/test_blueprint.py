@@ -28,17 +28,21 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         sharepoint_web_url = req.params.get("sharepoint_url")
         status = req.params.get("status")
         manual_flag = req.params.get("manual_flag")
+
+        logging.info("---param---")
         logging.info(source_name)
         logging.info(pdf_url)
-        logging.info(sharepoint_web_url) # TODO if sharepoint is Nan
+        logging.info(sharepoint_web_url)
         logging.info(status)
         logging.info(manual_flag)
+        logging.info("-----------")
 
         status = int(status) if not (status is None or status.split() == '') else 999
         manual_flag = int(manual_flag) if not (manual_flag is None or manual_flag.split() == '') else 999
         
         # .envファイルを読み込む
         load_dotenv()
+        logging.info("env variables loaded.")
         
         # EntraID、GraphAPI関連
         entra_client_id = os.getenv('ENTRA_CLIENT_ID')
@@ -55,6 +59,8 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         drive_id = os.getenv('DRIVE_ID')
         environment = os.getenv('ENVIRONMENT')
         
+        logging.info("Environment variables loaded successfully.")
+
         graph_api_service = GraphAPIService(
                 client_id=entra_client_id
                 , client_secret=entra_client_secret
@@ -68,6 +74,8 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                                             , entra_client_secret=entra_client_secret
                                             , authority=entra_authority_url
                                             , entity_logical_name=dataverse_entity_name)
+        
+        logging.info("Services initiated successfully.")
         
         df_output = pd.DataFrame() # 管理ファイルN+1世代の準備
 
@@ -109,11 +117,12 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
         insert_to_be_registered = ''
         
         upload_method = "manual" if manual_flag == 1 else "automatic"
-        logging.info(upload_method)
+        logging.info(f"upload_method: {upload_method}")
         web_url = pdf_url
         pdf_storage_directory_path = f"/{environment}/{upload_method}/{source_name}"
 
         # Dataverseからレコードを取得
+        logging.info("start record extraction from dataverse")
         records = dataverse_service.entity.read(
             select=["cr261_source_name", "cr261_pdf_url", "cr261_sharepoint_url", 
                     "cr261_sharepoint_directory", "cr261_sharepoint_file_name", "cr261_sharepoint_item_id", 
@@ -165,7 +174,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
 
                 # ファイル名と最終更新日を取得
                 web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
-                logging.info(pdf_file_name)
+                logging.info(f"pdf file exists? -> {pdf_file_name}")
                 if pdf_file_name == 'empty' or pdf_file_name == '404':
                     status_to_be_inserted = 9
                     insert_to_be_registered = '1'
@@ -175,6 +184,7 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
 
                 time.sleep(50)
                 # PDFファイルをwebから取得
+                logging.info("start download_file_from_web")
                 file_content = graph_api_service.download_file_from_web(web_url=web_url)
                 if file_content == 'empty':
                     logging.warning(f"could not download file for {web_url}")
@@ -344,13 +354,13 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                 get_file_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:{pdf_storage_directory_path}/{pdf_file_name}"
                 sharepoint_file_metadata = graph_api_service.graph_api_get(get_file_url).json()
                 logging.info(sharepoint_file_metadata)
-                if '404error' in sharepoint_file_metadata:
-                    logging.warning("404 error occured")
+                if 'error' in sharepoint_file_metadata:
+                    logging.warning("failed to retrieve sharepoint file metadata")
                     logging.info(sharepoint_file_metadata)
                     status_to_be_inserted = 9
                     insert_to_be_registered = '1'
                 else:
-                    logging.info('not 404')
+                    logging.info('suceeded in sharepoint file metadata retrieval')
                     status_to_be_inserted = status
                     insert_to_be_registered = '0'
 
@@ -373,129 +383,157 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                     # dataverseの書き込み
                     df_dictionary = pd.DataFrame([record_dict])                
                     result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
-
-                    # sharepointに変更があったが、statusが1の場合は後続の分岐処理で削除処理をおこなう。それ以外は次の行に進む。
-                    if status != 1:
-                        logging.info("task ended successfully")
-                        logging.info("\ntask ended successfully")
-
-                        return func.HttpResponse("record skipped")
-
-            # status値による分岐処理：
-            if status == 9:
-                # ユーザーが確認する必要あり
-                # 管理ファイル世代N+1に追記
-                df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
-                logging.info("staus is 9. skipping record")
-                return func.HttpResponse("status is 9. skipping")
-
-            elif status == 1:
-                # sharepointのファイルを削除、dfのstatusを1に、indexedを0に、その他db整理
-                item_id = record_dict["cr261_sharepoint_item_id"]
-                logging.info(item_id)
-                delete_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{item_id}"
-                deletion_graph_data = graph_api_service.delete_file_from_sharepoint(delete_url)
-                
-                if deletion_graph_data:
-                    # dictionary を更新する
-                    record_dict["cr261_indexed"] = "0"
-                    record_dict["cr261_status"] = 1
-                    record_dict["cr261_pdf_last_modified_datetime"] = datetime(1970, 1, 1).strftime('%Y-%m-%dT%H:%M:%SZ')
-                    # dataverseの書き込み
-                    df_dictionary = pd.DataFrame([record_dict])                
-                    result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
-                    # 管理ファイル世代N+1には記入しない　（行がなくなる）
-                    
-                    logging.info("ファイル削除成功")
-                
-            elif status == 0:
-                
-                # ファイルの再ダウンロード要否の確認が必要
-                dataverse_last_modified_date = record_dict["cr261_pdf_last_modified_datetime"]
-
-                # PDFファイル情報をwebから取得
-                web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
-
-                
-                if '404' in pdf_file_name :
-                    logging.info('404')
-                    status_to_be_inserted = 9
-                    insert_to_be_registered = '1'
-                elif 'empty' in pdf_file_name and 'EMA' in source_name and record_dict["cr261_status"] == 0:
-                    # EMAはこけやすいので、前回の取り込みが成功していれば見逃す
-                    logging.info('EMA get header failed, but previous get was successful')
-                    status_to_be_inserted = status
-                    insert_to_be_registered = '1'
-                elif 'empty' in pdf_file_name:
-                    status_to_be_inserted = 9
-                    insert_to_be_registered = '1'
+                    return func.HttpResponse("dataverse record updated")
                 else:
-                    logging.info('not 404')
-                    status_to_be_inserted = status
-                    insert_to_be_registered = '0'
+                    # status値による分岐処理：
+                    if status == 9:
+                        # ユーザーが確認する必要あり
+                        # 管理ファイル世代N+1に追記
+                        logging.info("staus is 9. skipping record")
+                        logging.info(result)
+                        return func.HttpResponse("status is 9 or 0. skipping")
+                    elif status == 0:
+                        logging.info("staus is 0. upsert record")
+                        df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
+                        result = dataverse_service.entity.upsert(data=df_output, mode="individual")
+                        logging.info(result)
+                        return func.HttpResponse("status is 9 or 0. skipping")
+                    else:
+                        # sharepointのファイルを削除、dfのstatusを1に、indexedを0に、その他db整理
+                        item_id = record_dict["cr261_sharepoint_item_id"]
+                        logging.info(item_id)
+                        delete_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{item_id}"
+                        deletion_graph_data = graph_api_service.delete_file_from_sharepoint(delete_url)
+                        
+                        if deletion_graph_data:
+                            # dictionary を更新する
+                            record_dict["cr261_indexed"] = "0"
+                            record_dict["cr261_status"] = 1
+                            record_dict["cr261_pdf_last_modified_datetime"] = datetime(1970, 1, 1).strftime('%Y-%m-%dT%H:%M:%SZ')
+                            # dataverseの書き込み
+                            df_dictionary = pd.DataFrame([record_dict])                
+                            result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                            # 管理ファイル世代N+1には記入しない　（行がなくなる）
+                            logging.info(result)
+                            logging.info("ファイル削除成功")
+                            return func.HttpResponse("status is 1. delete document from sharepoint completed")
+            else:
+                # status値による分岐処理：
+                if status == 9:
+                    # ユーザーが確認する必要あり
+                    # 管理ファイル世代N+1に追記
+                    df_output = pd.concat([df_output, pd.DataFrame([record_dict])], axis=0, ignore_index=True)
+                    logging.info("staus is 9. skipping record")
+                    return func.HttpResponse("status is 9. skipping")
 
-                # ファイルがwebに存在しない場合や、ダウンロードに不備（サーバー側のスクレイピング制限等）があった場合statusを9に変更
-                if web_last_modified_date is None and pdf_file_name is None:
-                    status_to_be_inserted = 9    
+                elif status == 1:
+                    # sharepointのファイルを削除、dfのstatusを1に、indexedを0に、その他db整理
+                    item_id = record_dict["cr261_sharepoint_item_id"]
+                    logging.info(item_id)
+                    delete_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{item_id}"
+                    deletion_graph_data = graph_api_service.delete_file_from_sharepoint(delete_url)
                     
-                    # dataverseの書き込み
-                    df_dictionary = pd.DataFrame([record_dict])
-                    result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                    if deletion_graph_data:
+                        # dictionary を更新する
+                        record_dict["cr261_indexed"] = "0"
+                        record_dict["cr261_status"] = 1
+                        record_dict["cr261_pdf_last_modified_datetime"] = datetime(1970, 1, 1).strftime('%Y-%m-%dT%H:%M:%SZ')
+                        # dataverseの書き込み
+                        df_dictionary = pd.DataFrame([record_dict])                
+                        result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                        logging.info(result)
+                        # 管理ファイル世代N+1には記入しない　（行がなくなる）
+                        
+                        logging.info("ファイル削除成功")
                     
-                    logging.info("ファイルダウンロード失敗")
+                elif status == 0:
                     
+                    # ファイルの再ダウンロード要否の確認が必要
+                    dataverse_last_modified_date = record_dict["cr261_pdf_last_modified_datetime"]
 
-                # 更新がない場合ダウンロードをスキップ
-                if web_last_modified_date == dataverse_last_modified_date and record_dict["cr261_status"] == 0:
-                    logging.info("ファイル最終更新日が一致")
-                    logging.info("ファイル最終更新日が一致")
-                    return func.HttpResponse("download is skipped because file modified date is the same as header")
-                
-                # PDFファイル情報をwebから取得
-                file_content = graph_api_service.download_file_from_web(web_url=web_url)
-                if file_content == 'empty':
-                    # file download に失敗したので、シェアポイント格納は行わず、データバースに失敗したことを書き込み、処理終了
-                    logging.info('empty')
-                    
-                    status_to_be_inserted = 9
-                    insert_to_be_registered = '1'
+                    # PDFファイル情報をwebから取得
+                    web_last_modified_date, pdf_file_name = graph_api_service.get_file_header_from_web(web_url=web_url)
 
+                    
+                    if '404' in pdf_file_name :
+                        logging.info('404')
+                        status_to_be_inserted = 9
+                        insert_to_be_registered = '1'
+                    elif 'empty' in pdf_file_name and 'EMA' in source_name and record_dict["cr261_status"] == 0:
+                        # EMAはこけやすいので、前回の取り込みが成功していれば見逃す
+                        logging.info('EMA get header failed, but previous get was successful')
+                        status_to_be_inserted = status
+                        insert_to_be_registered = '1'
+                    elif 'empty' in pdf_file_name:
+                        status_to_be_inserted = 9
+                        insert_to_be_registered = '1'
+                    else:
+                        logging.info('not 404')
+                        status_to_be_inserted = status
+                        insert_to_be_registered = '0'
+
+                    # ファイルがwebに存在しない場合や、ダウンロードに不備（サーバー側のスクレイピング制限等）があった場合statusを9に変更
+                    if web_last_modified_date is None and pdf_file_name is None:
+                        status_to_be_inserted = 9    
+                        
+                        # dataverseの書き込み
+                        df_dictionary = pd.DataFrame([record_dict])
+                        result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                        
+                        logging.info("ファイルダウンロード失敗")
+                        
+
+                    # 更新がない場合ダウンロードをスキップ
+                    if web_last_modified_date == dataverse_last_modified_date and record_dict["cr261_status"] == 0:
+                        logging.info("ファイル最終更新日が一致")
+                        logging.info("ファイル最終更新日が一致")
+                        return func.HttpResponse("download is skipped because file modified date is the same as header")
+                    
+                    # PDFファイル情報をwebから取得
+                    file_content = graph_api_service.download_file_from_web(web_url=web_url)
+                    if file_content == 'empty':
+                        # file download に失敗したので、シェアポイント格納は行わず、データバースに失敗したことを書き込み、処理終了
+                        logging.info('empty')
+                        
+                        status_to_be_inserted = 9
+                        insert_to_be_registered = '1'
+
+                        record_dict["cr261_indexed"] = insert_to_be_registered
+                        record_dict["cr261_status"] = status_to_be_inserted
+                        
+                        df_dictionary = pd.DataFrame([record_dict])                
+                        result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                        
+                        logging.warning(f"could not download file for {record_dict["cr261_pdf_url"]}")
+                        return func.HttpResponse("file download failed for a file that exists in dataverse which needs updating.")
+                    else:
+                        logging.info('not empty')
+                        status_to_be_inserted = status
+                        insert_to_be_registered = '0'
+
+                    # PDFファイルをsharepointへ格納
+                    pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
+                    # 上書きアップロードのエンドポイント
+                    sharepoint_upload_endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{parent_id}:/{pdf_joined_name}:/content"
+                    file_upload_graph_data = graph_api_service.upload_file_to_sharepoint(file_content, pdf_file_name, sharepoint_upload_endpoint)
+
+                    # dataverseの更新
+                    record_dict["cr261_sharepoint_url"] = file_upload_graph_data["webUrl"]
+                    record_dict["cr261_sharepoint_item_id"] = file_upload_graph_data["id"]
+                    record_dict["cr261_sharepoint_file_name"] = pdf_file_name
+                    record_dict["cr261_sharepoint_directory"] = pdf_storage_directory_path
+                    record_dict["cr261_pdf_last_modified_datetime"] = web_last_modified_date
+                    record_dict["cr261_manual_flag"] = manual_flag
                     record_dict["cr261_indexed"] = insert_to_be_registered
                     record_dict["cr261_status"] = status_to_be_inserted
-                    
+
+                    # dataverseの書き込み
                     df_dictionary = pd.DataFrame([record_dict])                
                     result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
-                    
-                    logging.warning(f"could not download file for {record_dict["cr261_pdf_url"]}")
-                    return func.HttpResponse("file download failed for a file that exists in dataverse which needs updating.")
+
                 else:
-                    logging.info('not empty')
-                    status_to_be_inserted = status
-                    insert_to_be_registered = '0'
-
-                # PDFファイルをsharepointへ格納
-                pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
-                # 上書きアップロードのエンドポイント
-                sharepoint_upload_endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{parent_id}:/{pdf_joined_name}:/content"
-                file_upload_graph_data = graph_api_service.upload_file_to_sharepoint(file_content, pdf_file_name, sharepoint_upload_endpoint)
-
-                # dataverseの更新
-                record_dict["cr261_sharepoint_url"] = file_upload_graph_data["webUrl"]
-                record_dict["cr261_sharepoint_item_id"] = file_upload_graph_data["id"]
-                record_dict["cr261_sharepoint_file_name"] = pdf_file_name
-                record_dict["cr261_sharepoint_directory"] = pdf_storage_directory_path
-                record_dict["cr261_pdf_last_modified_datetime"] = web_last_modified_date
-                record_dict["cr261_manual_flag"] = manual_flag
-                record_dict["cr261_indexed"] = insert_to_be_registered
-                record_dict["cr261_status"] = status_to_be_inserted
-
-                # dataverseの書き込み
-                df_dictionary = pd.DataFrame([record_dict])                
-                result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
-
-            else:
-                logging.error(f"staus error for {record_dict["cr261_pdf_url"]}")
-                return func.HttpResponse("download is skipped because file modified date is the same as header")
+                    logging.error(f"staus error for {record_dict["cr261_pdf_url"]}")
+                    return func.HttpResponse("download is skipped because file modified date is the same as header")
             
             ### 行ごとの処理完了 ###
         
