@@ -55,8 +55,9 @@ def create_filename_master_blueprint_function(req: func.HttpRequest) -> func.Htt
     if len(dataverse_records) > 0:
         df_output = pd.DataFrame(dataverse_records) # 管理ファイルN+1世代の準備
 
-        df_selected = df_output[['cr261_sharepoint_file_name']]
+        df_selected = df_output[['cr261_pdf_url', 'cr261_sharepoint_file_name']]
         df_selected = df_selected.rename(columns={
+            'cr261_pdf_url': 'pdf_url',
             'cr261_sharepoint_file_name': 'sharepoint_file_name',
         })
         print(df_selected)
