@@ -50,7 +50,7 @@ def create_filename_master_blueprint_function(req: func.HttpRequest) -> func.Htt
     
     # Dataverseからレコード取得
     # 論理削除されてないものすべて取得
-    dataverse_records = dataverse_service.entity.read(select=["*"], filter="cr261_status ne 1", order_by="cr261_pdf_last_modified_datetime")
+    dataverse_records = dataverse_service.entity.read(select=["*"], filter="cr261_status ne 1 and not contains(cr261_sharepoint_file_name, 'empty') ", order_by="cr261_pdf_url")
     
     if len(dataverse_records) > 0:
         df_output = pd.DataFrame(dataverse_records) # 管理ファイルN+1世代の準備
@@ -68,7 +68,7 @@ def create_filename_master_blueprint_function(req: func.HttpRequest) -> func.Htt
         # Convert DataFrame to CSV in memory
         io_buffer = BytesIO()
         # df_sorted.to_excel(io_buffer, index=False)
-        df_selected.to_csv(io_buffer, index=False, encoding='utf-8-sig')  # Use BytesIO here
+        df_selected.to_csv(io_buffer, index=False, encoding='cp932')  # Use BytesIO here
 
         io_buffer.seek(0)
 
@@ -97,3 +97,5 @@ def create_filename_master_blueprint_function(req: func.HttpRequest) -> func.Htt
     print("\ntask ended successfully")
 
     return func.HttpResponse("retrieval list uploading task ended")
+
+create_filename_master_blueprint_function('a')
