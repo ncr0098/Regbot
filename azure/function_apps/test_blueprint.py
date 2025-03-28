@@ -178,6 +178,32 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                 if pdf_file_name == 'empty' or pdf_file_name == '404':
                     status_to_be_inserted = 9
                     insert_to_be_registered = '1'
+                    pdf_storage_directory_path = ""            
+                    sharepoint_web_url = ""
+                    generated_uuid = uuid.uuid4()
+                    last_modified = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+                    sharepoint_item_id = ""
+                    pdf_file_name = ""
+                    time_first_written_to_dataverse = last_modified
+                    record_dict = {
+                        "cr261_sharepoint_directory": f"{pdf_storage_directory_path}",
+                        "cr261_source_name": f"{source_name}",
+                        "cr261_sharepoint_url": f"{sharepoint_web_url}",
+                        "cr261_pdf_storageid": f"{generated_uuid}", # this is the guid of this dataverse record
+                        "cr261_manual_flag": f"{manual_flag}",
+                        "cr261_pdf_url": f"{pdf_url}",
+                        "cr261_pdf_last_modified_datetime": f"{last_modified}", # sharepointに格納された時間
+                        "cr261_status": f"{status_to_be_inserted}",
+                        "cr261_sharepoint_item_id": f"{sharepoint_item_id}", #sharepointに格納されたid
+                        "cr261_sharepoint_file_name": f"{pdf_file_name}",
+                        "cr261_timestamp": f"{time_first_written_to_dataverse}",
+                        "cr261_indexed": f"{insert_to_be_registered}"
+                    }
+
+                    df_dictionary = pd.DataFrame([record_dict])
+                    result = dataverse_service.entity.upsert(data=df_dictionary, mode="individual")
+                    
+                    return func.HttpResponse("failed to get file header from web.")
                 else:
                     status_to_be_inserted = status
                     insert_to_be_registered = '0'
@@ -511,16 +537,20 @@ def blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
                         logging.info('not empty')
                         status_to_be_inserted = status
                         insert_to_be_registered = '0'
-
-                    # PDFファイルをsharepointへ格納
-                    pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
-                    # 上書きアップロードのエンドポイント
-                    sharepoint_upload_endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{parent_id}:/{pdf_joined_name}:/content"
-                    file_upload_graph_data = graph_api_service.upload_file_to_sharepoint(file_content, pdf_file_name, sharepoint_upload_endpoint)
-
+                        
                     # dataverseの更新
-                    record_dict["cr261_sharepoint_url"] = file_upload_graph_data["webUrl"]
-                    record_dict["cr261_sharepoint_item_id"] = file_upload_graph_data["id"]
+                    if '404' in pdf_file_name or 'empty' in pdf_file_name:
+                        record_dict["cr261_sharepoint_url"] = ""
+                        record_dict["cr261_sharepoint_item_id"] = ""
+                    else:
+                        # PDFファイルをsharepointへ格納
+                        pdf_joined_name = f"{pdf_storage_directory_path}/{pdf_file_name}"
+                        # 上書きアップロードのエンドポイント
+                        sharepoint_upload_endpoint = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{parent_id}:/{pdf_joined_name}:/content"
+                        file_upload_graph_data = graph_api_service.upload_file_to_sharepoint(file_content, pdf_file_name, sharepoint_upload_endpoint)
+                        record_dict["cr261_sharepoint_url"] = file_upload_graph_data["webUrl"]
+                        record_dict["cr261_sharepoint_item_id"] = file_upload_graph_data["id"]
+                    
                     record_dict["cr261_sharepoint_file_name"] = pdf_file_name
                     record_dict["cr261_sharepoint_directory"] = pdf_storage_directory_path
                     record_dict["cr261_pdf_last_modified_datetime"] = web_last_modified_date
