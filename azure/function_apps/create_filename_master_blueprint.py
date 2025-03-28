@@ -1,11 +1,11 @@
 import azure.functions as func
 import logging
 
-create_master_bp = func.Blueprint()
+create_filename_master_bp = func.Blueprint()
 
-@create_master_bp.function_name('create_master_blueprint')
-@create_master_bp.route(route='create_master_blueprint')
-def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
+@create_filename_master_bp.function_name('create_filename_master_blueprint')
+@create_filename_master_bp.route(route='create_filename_master_blueprint')
+def create_filename_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse:
     from datetime import datetime
 
     from services.graph_api_service import GraphAPIService
@@ -14,6 +14,8 @@ def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse
     from dotenv import load_dotenv
     import pandas as pd
     from io import BytesIO
+    from urllib.parse import unquote
+
     
     # .envファイルを読み込む
     load_dotenv()
@@ -48,29 +50,25 @@ def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse
     
     # Dataverseからレコード取得
     # 論理削除されてないものすべて取得
-    dataverse_records = dataverse_service.entity.read(select=["*"], filter="cr261_status ne 1", order_by="cr261_pdf_last_modified_datetime")
+    dataverse_records = dataverse_service.entity.read(select=["*"], filter="cr261_status ne 1 and not contains(cr261_sharepoint_file_name, 'empty') ", order_by="cr261_pdf_url")
     
     if len(dataverse_records) > 0:
         df_output = pd.DataFrame(dataverse_records) # 管理ファイルN+1世代の準備
 
-        df_selected = df_output[['cr261_source_name', 'cr261_pdf_url', 'cr261_sharepoint_file', 'cr261_status', 'cr261_manual_flag']]
+        df_selected = df_output[['cr261_pdf_url', 'cr261_sharepoint_file_name']]
         df_selected = df_selected.rename(columns={
-            'cr261_source_name': 'source_name',
             'cr261_pdf_url': 'pdf_url',
-            'cr261_sharepoint_url': 'sharepoint_url',
-            'cr261_status': 'status',
-            'cr261_manual_flag':'manual_flag'
+            'cr261_sharepoint_file_name': 'sharepoint_file_name',
         })
-        df_sorted = df_selected.sort_values(by=['status', 'source_name', 'pdf_url'], 
-                                ascending=[False, True, True])
-        print(df_sorted)
-        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        print(df_selected)
+        df_selected['sharepoint_file_name'] = df_selected['sharepoint_file_name'].apply(unquote)
+        print(df_selected)
         # Create the filename with the current time
-        retrieval_list_file_name = f"retrieve_list_{current_time}.csv"
+        retrieval_list_file_name = f"reference_files.csv"
         # Convert DataFrame to CSV in memory
         io_buffer = BytesIO()
         # df_sorted.to_excel(io_buffer, index=False)
-        df_sorted.to_csv(io_buffer, index=False)  # Use BytesIO here
+        df_selected.to_csv(io_buffer, index=False, encoding='cp932')  # Use BytesIO here
 
         io_buffer.seek(0)
 
@@ -88,9 +86,10 @@ def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse
 
         logging.info("start uploading")
         graph_data = graph_api_service.upload_file_to_sharepoint(io_bytes, retrieval_list_file_name, sharepoint_upload_retrieve_list_endpoint)
+        logging.info(graph_data)
         logging.info("complete uploading")
 
-        logging.info("retrieval list uploaded")
+        logging.info("reference filename master uploaded")
     else:
         logging.info("no record founded")
 
@@ -98,3 +97,5 @@ def create_master_blueprint_function(req: func.HttpRequest) -> func.HttpResponse
     print("\ntask ended successfully")
 
     return func.HttpResponse("retrieval list uploading task ended")
+
+create_filename_master_blueprint_function('a')
