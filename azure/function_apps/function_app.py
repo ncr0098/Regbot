@@ -5,11 +5,13 @@ import logging
 from test_blueprint import bp
 from create_master_blueprint import create_master_bp
 from latest_retrieval_list_blueprint import get_latest_retrieval_list_csv_bp
+from create_filename_master_blueprint import create_filename_master_bp
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 app.register_blueprint(bp)
 app.register_blueprint(create_master_bp)
 app.register_blueprint(get_latest_retrieval_list_csv_bp)
+app.register_blueprint(create_filename_master_bp)
 
 @app.function_name(name="importFileToAISearch")
 @app.route(route="importFileToAISearch") # HTTP Trigger
