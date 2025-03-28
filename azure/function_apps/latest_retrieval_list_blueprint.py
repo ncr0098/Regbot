@@ -87,7 +87,7 @@ def get_latest_retrieval_list_csv_blueprint_function(req: func.HttpRequest) -> f
         absolute_path = graph_api_service.download_file_from_sharepoint(file_url=file_url, file_name=savefile_name)
         logging.info(f"File downloaded and saved as {absolute_path}")
         
-        with open(absolute_path, 'r', encoding='utf-8') as file:
+        with open(absolute_path, 'r', encoding='cp932') as file:
             csv_content = file.read()
         logging.info("CSV content read from file.")
         
@@ -107,3 +107,5 @@ def get_latest_retrieval_list_csv_blueprint_function(req: func.HttpRequest) -> f
         )
     except Exception as e:
         logging.error(f"Error occured: {e}")
+
+get_latest_retrieval_list_csv_blueprint_function('a')
